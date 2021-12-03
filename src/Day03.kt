@@ -1,5 +1,14 @@
 fun main() {
 
+    fun List<Char>.bitsToInt(): Int =
+        this.fold(0) { value, bit ->
+            when (bit) {
+                '1' -> (value * 2) + 1
+                '0' -> value * 2
+                else -> error("Bits should only be '1' or '0'.")
+            }
+        }
+
     fun getGamma(input: List<String>): Int =
         (0 until input.maxOf { it.length })
             .map { index ->
@@ -7,7 +16,7 @@ fun main() {
                 val count0 = input.count { it[index] == '0' }
                 if (count1 > count0) '1' else '0'
             }
-            .fold(0) { gamma, bit -> (gamma * 2) + (if (bit == '1') 1 else 0) }
+            .bitsToInt()
 
     fun getEpsilon(input: List<String>): Int =
         (0 until input.maxOf { it.length })
@@ -16,24 +25,23 @@ fun main() {
                 val count0 = input.count { it[index] == '0' }
                 if (count1 < count0) '1' else '0'
             }
-            .fold(0) { gamma, bit -> (gamma * 2) + (if (bit == '1') 1 else 0) }
+            .bitsToInt()
 
     fun getRating(input: List<String>, getCriteriaBit: (count1: Int, count0: Int) -> Char): Int {
-        val generations = generateSequence(Pair(0, input)) { (index, numbers) ->
-            if (numbers.size <= 1) {
-                null        // termination condition
-            } else {
-                val count1 = numbers.count { it[index] == '1' }
-                val count0 = numbers.count { it[index] == '0' }
-                val criteriaBit = getCriteriaBit(count1, count0)
-                Pair(index + 1, numbers.filter { it[index] == criteriaBit })
+        fun getNumber(index: Int, numbers: List<String>): String {
+            when (numbers.size) {
+                0 -> error("Should never get to 0 numbers.")
+                1 -> return numbers.first()
             }
+
+            // filter and move on one index recursively
+            val count1 = numbers.count { it[index] == '1' }
+            val count0 = numbers.count { it[index] == '0' }
+            val criteriaBit = getCriteriaBit(count1, count0)
+            return getNumber(index + 1, numbers.filter { it[index] == criteriaBit })
         }
 
-        val finalNumber = generations.map { it.second }.last().first()
-        return finalNumber.fold(0) { rating, bit ->
-            (2 * rating) + (if (bit == '1') 1 else 0)
-        }
+        return getNumber(0, input).toList().bitsToInt()
     }
 
     fun part1(input: List<String>): Int {
