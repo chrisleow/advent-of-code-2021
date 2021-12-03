@@ -28,7 +28,7 @@ fun main() {
             .bitsToInt()
 
     fun getRating(input: List<String>, getCriteriaBit: (count1: Int, count0: Int) -> Char): Int {
-        fun getNumber(index: Int, numbers: List<String>): String {
+        tailrec fun getNumber(index: Int, numbers: List<String>): String {
             when (numbers.size) {
                 0 -> error("Should never get to 0 numbers.")
                 1 -> return numbers.first()
