@@ -1,29 +1,29 @@
 fun main() {
 
-    fun List<Char>.bitsToInt(): Int =
+    fun String.bitsToInt(): Int =
         this.fold(0) { value, bit ->
             when (bit) {
-                '1' -> (value * 2) + 1
-                '0' -> value * 2
+                '1' -> (value shl 1) + 1
+                '0' -> value shl 1
                 else -> error("Bits should only be '1' or '0'.")
             }
         }
 
     fun getGamma(input: List<String>): Int =
         (0 until input.maxOf { it.length })
-            .map { index ->
+            .joinToString("") { index ->
                 val count1 = input.count { it[index] == '1' }
                 val count0 = input.count { it[index] == '0' }
-                if (count1 > count0) '1' else '0'
+                if (count1 > count0) "1" else "0"
             }
             .bitsToInt()
 
     fun getEpsilon(input: List<String>): Int =
         (0 until input.maxOf { it.length })
-            .map { index ->
+            .joinToString("") { index ->
                 val count1 = input.count { it[index] == '1' }
                 val count0 = input.count { it[index] == '0' }
-                if (count1 < count0) '1' else '0'
+                if (count1 < count0) "1" else "0"
             }
             .bitsToInt()
 
@@ -41,7 +41,7 @@ fun main() {
             return getNumber(index + 1, numbers.filter { it[index] == criteriaBit })
         }
 
-        return getNumber(0, input).toList().bitsToInt()
+        return getNumber(0, input).bitsToInt()
     }
 
     fun part1(input: List<String>): Int {
