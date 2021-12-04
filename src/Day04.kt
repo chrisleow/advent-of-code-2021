@@ -59,9 +59,9 @@ fun main() {
         val grids = groupedLines.map { lines ->
             val gridNumbers = lines
                 .flatMapIndexed { y, line ->
-                    line.split(" ").filter { it.isNotBlank() }.mapIndexed { x, num ->
-                        Pair(x, y) to num.toInt()
-                    }
+                    line.split(" ")
+                        .filter { it.isNotBlank() }
+                        .mapIndexed { x, num -> Pair(x, y) to num.toInt() }
                 }
                 .toMap()
             Grid(numbers = gridNumbers, marks = emptySet(), bingo = null)
@@ -76,11 +76,9 @@ fun main() {
 
     val winningPositions = run {
         val positions = sequence {
-            // horizontals
             (0 until 5).forEach { y ->
                 yield((0 until 5).map { x -> Pair(x, y) }.toSet())
             }
-            // verticals
             (0 until 5).forEach { x ->
                 yield((0 until 5).map { y -> Pair(x, y) }.toSet())
             }
@@ -90,24 +88,23 @@ fun main() {
 
     fun State.playOneMove(): State? {
         val currentMove = this.move + 1
-        val playingNumber = this.remainingNumbers.firstOrNull()
+        val currentNumber = this.remainingNumbers.firstOrNull()
             ?: return null
 
         val newGrids = this.grids.map { grid ->
             val matchingPositions = grid.numbers
-                .filter { (_, number) -> number == playingNumber }
+                .filter { (_, number) -> number == currentNumber }
                 .map { (pos, _) -> pos }
             val newMarks = grid.marks + matchingPositions
 
             // assess for "bingo"
             grid.copy(
                 marks = newMarks,
-                bingo = when {
-                    grid.bingo != null -> grid.bingo
-                    winningPositions.any { newMarks.containsAll(it) } -> {
-                        BingoRecord(currentMove, playingNumber)
-                    }
-                    else -> null
+                bingo = grid.bingo ?: run {
+                    if (winningPositions.any { newMarks.containsAll(it) })
+                        BingoRecord(currentMove, currentNumber)
+                    else
+                        null
                 }
             )
         }
