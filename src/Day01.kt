@@ -1,16 +1,13 @@
 fun main() {
     fun part1(input: List<String>): Int {
         val readings = input.map { it.toInt() }
-        return (0 until readings.size - 1)
-            .count { i -> readings[i + 1] > readings[i] }
+        return (0 until readings.size - 1).count {  readings[it + 1] > readings[it] }
     }
 
     fun part2(input: List<String>): Int {
         val readings = input.map { it.toInt() }
-        val windows = (0 .. readings.size - 3)
-            .map { readings.slice(it until it + 3).sum() }
-        return (0 until windows.size - 1)
-            .count { i -> windows[i + 1] > windows[i] }
+        val windows = (0 .. readings.size - 3).map { readings.slice(it until it + 3).sum() }
+        return (0 until windows.size - 1).count { windows[it + 1] > windows[it] }
     }
 
     // test if implementation meets criteria from the description, like:
