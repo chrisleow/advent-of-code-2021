@@ -6,11 +6,12 @@ fun main() {
 
     fun parseInput(input: List<String>): List<Line> {
         val pattern = "(\\d+),(\\d+)\\s*->\\s*(\\d+),(\\d+)".toRegex()
-        return input.mapNotNull { pattern.matchEntire(it)?.groupValues }
+        return input
+            .mapNotNull { pattern.matchEntire(it)?.groupValues }
             .map { gv -> Line(Point(gv[1].toInt(), gv[2].toInt()), Point(gv[3].toInt(), gv[4].toInt())) }
     }
 
-    fun Line.interpolate(): List<Point> {
+    fun Line.interpolate(): Sequence<Point> {
         val deltaX = this.to.x - this.from.x
         val deltaY = this.to.y - this.from.y
         assert(abs(deltaX) == abs(deltaY) || deltaX == 0 || deltaY == 0) {
@@ -20,10 +21,9 @@ fun main() {
         // interpolate along "single-translation" deltas
         val dx = if (deltaX != 0) deltaX / abs(deltaX) else 0
         val dy = if (deltaY != 0) deltaY / abs(deltaY) else 0
-        val points = generateSequence(this.from) {
+        return generateSequence(this.from) {
             if (it != this.to) Point(it.x + dx, it.y + dy) else null
         }
-        return points.toList()
     }
 
     fun part1(input: List<String>): Int {
