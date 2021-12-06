@@ -33,45 +33,50 @@ fun main() {
         }
     }
 
+    fun <T> Iterable<T>.split(isDelimiter: (T) -> Boolean): List<List<T>> {
+        val input = this
+        val chunks = sequence {
+            var chunk = mutableListOf<T>()
+            input.forEach { item ->
+                when {
+                    !isDelimiter(item) -> {
+                        chunk.add(item)
+                    }
+                    chunk.isNotEmpty() -> {
+                        yield(chunk)
+                        chunk = mutableListOf()
+                    }
+                }
+            }
+            if (chunk.isNotEmpty()) {
+                yield(chunk)
+            }
+        }
+        return chunks.toList()
+    }
+
     fun parseInput(input: List<String>): State {
         val numbers = input[0]
             .split(",")
             .filter { it.isNotBlank() }
             .map { it.toInt() }
 
-        val groupedLines: Sequence<List<String>> = sequence {
-            val lines = mutableListOf<String>()
-            input.drop(1).forEach { line ->
-                if (line.isBlank()) {
-                    if (lines.isNotEmpty()) {
-                        yield(lines)
-                        lines.clear()
+        val grids = input
+            .drop(1)
+            .split { it.isBlank() }
+            .filter { it.isNotEmpty() }
+            .map { lines ->
+                val gridNumbers = lines
+                    .flatMapIndexed { y, line ->
+                        line.split(" ")
+                            .filter { it.isNotBlank() }
+                            .mapIndexed { x, num -> Pair(x, y) to num.toInt() }
                     }
-                } else {
-                    lines.add(line)
-                }
+                    .toMap()
+                Grid(numbers = gridNumbers, marks = emptySet(), bingo = null)
             }
-            if (lines.isNotEmpty()) {
-                yield(lines)
-            }
-        }
 
-        val grids = groupedLines.map { lines ->
-            val gridNumbers = lines
-                .flatMapIndexed { y, line ->
-                    line.split(" ")
-                        .filter { it.isNotBlank() }
-                        .mapIndexed { x, num -> Pair(x, y) to num.toInt() }
-                }
-                .toMap()
-            Grid(numbers = gridNumbers, marks = emptySet(), bingo = null)
-        }
-
-        return State(
-            move = 0,
-            remainingNumbers = numbers,
-            grids = grids.toList(),
-        )
+        return State(move = 0, remainingNumbers = numbers, grids = grids)
     }
 
     val winningPositions = run {

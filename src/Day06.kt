@@ -2,24 +2,23 @@ fun main() {
 
     fun parseInput(input: List<String>): Map<Int, Long> {
         val pattern = "\\d+".toRegex()
-        val numbers = input.flatMap { line -> pattern.findAll(line).map { it.value.toInt() } }
-        return numbers
+        return input
+            .flatMap { line -> pattern.findAll(line).map { it.value.toInt() } }
             .groupingBy { it }
             .eachCount()
-            .mapValues { (_, c) -> c.toLong() }
+            .mapValues { (_, count) -> count.toLong() }
     }
 
     fun Map<Int, Long>.next(): Map<Int, Long> {
         return this
             .flatMap { (timer, count) ->
-                if (timer == 0) {
-                    listOf(Pair(6, count), Pair(8, count))
-                } else {
-                    listOf(Pair(timer - 1, count))
+                when (timer) {
+                    0 -> listOf(Pair(6, count), Pair(8, count))
+                    else -> listOf(Pair(timer - 1, count))
                 }
             }
-            .groupingBy { it.first }
-            .aggregate { _, count, timerCountPair, _ -> (count ?: 0L) + timerCountPair.second }
+            .groupBy { (timer, _) -> timer }
+            .mapValues { (_, ps) -> ps.sumOf { (_, count) -> count } }
     }
 
     fun part1(input: List<String>): Long {

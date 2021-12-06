@@ -1,8 +1,4 @@
-enum class Direction {
-    FORWARD,
-    DOWN,
-    UP,
-}
+enum class Direction { FORWARD, DOWN, UP }
 
 fun main() {
 
