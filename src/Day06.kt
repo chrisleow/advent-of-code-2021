@@ -18,21 +18,23 @@ fun main() {
                     listOf(Pair(timer - 1, count))
                 }
             }
-            .groupBy({ it.first }) { it.second }
-            .mapValues { (_, counts) -> counts.sum() }
+            .groupingBy { it.first }
+            .aggregate { _, count, timerCountPair, _ -> (count ?: 0L) + timerCountPair.second }
     }
 
     fun part1(input: List<String>): Long {
         val initialState = parseInput(input)
-        val states = generateSequence(initialState) { it.next() }
-        val finalState = states.drop(80).first()
+        val finalState = generateSequence(initialState) { it.next() }
+            .drop(80)
+            .first()
         return finalState.values.sum()
     }
 
     fun part2(input: List<String>): Long {
         val initialState = parseInput(input)
-        val states = generateSequence(initialState) { it.next() }
-        val finalState = states.drop(256).first()
+        val finalState = generateSequence(initialState) { it.next() }
+            .drop(256)
+            .first()
         return finalState.values.sum()
     }
 
