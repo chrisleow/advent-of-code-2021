@@ -16,17 +16,22 @@ fun main() {
         }
 
     // let's go for maximum efficiency :)
-    fun getMinimumCost(lower: Int, upper: Int, getCost: (Int) -> Int): Int {
+    fun getMinimumCost(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {
         val memoizedCosts = mutableMapOf<Int, Int>()
-        fun cost(pos: Int) = memoizedCosts.getOrPut(pos) { getCost(pos) }
+        fun cost(pos: Int) = memoizedCosts.getOrPut(pos) { calculateCost(pos) }
 
         // this is a convex function, looking for minimum can be done with binary search
-        tailrec fun search(left: Int, right: Int): Int {
-            val middle = (left + right) / 2
-            return when {
-                cost(middle) <= cost(middle - 1) && cost(middle) <= cost(middle + 1) -> middle
-                cost(middle - 1) <= cost(middle) -> search(left, middle)
-                else -> search(middle, right)
+        // assessing "slope" at (middle, middle + 1)
+        tailrec fun search(left: Int, right: Int): Int = when {
+            right - left <= 1 -> {
+                if (cost(left) <= cost(right)) left else right
+            }
+            else -> {
+                val middle = (left + right) / 2
+                when {
+                    cost(middle) <= cost(middle + 1) -> search(left, middle)
+                    else -> search(middle + 1, right)
+                }
             }
         }
 
