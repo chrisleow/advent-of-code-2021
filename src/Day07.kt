@@ -8,26 +8,44 @@ fun main() {
         .joinToString(",")
         .split(",")
         .filter { it.isNotBlank() }
-        .map { it.toInt() }
+        .map { it.trim().toInt() }
 
     fun getMinMaxPositions(positions: List<Int>): Pair<Int, Int> = positions
         .fold(Pair(Int.MAX_VALUE, Int.MIN_VALUE)) { minMax, pos ->
             Pair(min(minMax.first, pos), max(minMax.second, pos))
         }
 
+    // let's go for maximum efficiency :)
+    fun getMinimumCost(lower: Int, upper: Int, getCost: (Int) -> Int): Int {
+        val memoizedCosts = mutableMapOf<Int, Int>()
+        fun cost(pos: Int) = memoizedCosts.getOrPut(pos) { getCost(pos) }
+
+        // this is a convex function, looking for minimum can be done with binary search
+        tailrec fun search(left: Int, right: Int): Int {
+            val middle = (left + right) / 2
+            return when {
+                cost(middle) <= cost(middle - 1) && cost(middle) <= cost(middle + 1) -> middle
+                cost(middle - 1) <= cost(middle) -> search(left, middle)
+                else -> search(middle, right)
+            }
+        }
+
+        return cost(search(lower, upper))
+    }
+
     fun part1(input: List<String>): Int {
         val positions = parseInput(input)
         val (minPos, maxPos) = getMinMaxPositions(positions)
-        return (minPos .. maxPos).minOf {
-            positions.sumOf { pos -> abs(it - pos) }
+        return getMinimumCost(minPos, maxPos) { pos ->
+            positions.sumOf { abs(it - pos) }
         }
     }
 
     fun part2(input: List<String>): Int {
         val positions = parseInput(input)
         val (minPos, maxPos) = getMinMaxPositions(positions)
-        return (minPos .. maxPos).minOf {
-            positions.sumOf { pos ->
+        return getMinimumCost(minPos, maxPos) { pos ->
+            positions.sumOf {
                 val delta = abs(it - pos)
                 delta * (delta + 1) / 2
             }
