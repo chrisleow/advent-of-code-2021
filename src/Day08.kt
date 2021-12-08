@@ -23,54 +23,47 @@ fun main() {
                 .let { InputLine(it[0], it[1]) }
         }
 
-    fun decode(line: InputLine): Pair<Long, Long> {
+    fun decodeOutput(line: InputLine): Int {
         val scrambledPatterns = line.signalPatterns + line.outputPatterns
         val digitPatternsByLength = digits.keys.groupBy { it.length }
 
         // boil down set of "possibilities" assuming a digit pattern to an output pattern
-        fun Map<Char, String>.restrict(from: String, to: String): Map<Char, String> {
-            assert(from.length == to.length) {
-                "restricted 'from' and 'to' sets are the same size"
+        fun Map<Char, Set<Char>>.restrict(scrambled: String, real: String): Map<Char, Set<Char>> {
+            assert(scrambled.length == real.length) {
+                "restricted 'scrambled' and 'real' strings are the same size"
             }
             return this.mapValues { (char, possibleChars) ->
-                when (char in from) {
-                    true -> possibleChars.filter { it in to }.toCharArray().joinToString("")
-                    false -> possibleChars.filter { it !in to }.toCharArray().joinToString("")
+                when (char in scrambled) {
+                    true -> possibleChars intersect real.toSet()
+                    false -> possibleChars - real.toSet()
                 }
             }
         }
 
         // search by testing hypotheses for each digit (and restricting the map as we go)
-        fun search(map: Map<Char, String>, index: Int): Map<Char, String>? = when {
-            map.any { it.value.isEmpty() } -> null
-            index >= scrambledPatterns.size -> map
+        fun search(mapping: Map<Char, Set<Char>>, index: Int): Map<Char, Char>? = when {
+            mapping.any { it.value.isEmpty() } -> null
+            index >= scrambledPatterns.size -> mapping.mapValues { it.value.first() }
             else -> {
                 val scrambledPattern = scrambledPatterns[index]
                 digitPatternsByLength[scrambledPattern.length]?.firstNotNullOfOrNull {
-                    search(map.restrict(scrambledPattern, it), index + 1)
+                    search(mapping.restrict(scrambledPattern, it), index + 1)
                 }
             }
         }
 
-        val map = search("abcdefg".associateWith { "ABCDEFG" }, 0)
-            ?.mapValues { it.value.first() }
+        val mapping = search("abcdefg".associateWith { "ABCDEFG".toSet() }, 0)
             ?: error("Should have a final mapping")
 
-        fun String.unscrambleDigit(): Int {
-            val realPattern = this
-                .mapNotNull { map[it] }
-                .sorted()
-                .joinToString("")
-            return digits[realPattern] ?: error("Should have a mapping")
-        }
-
-        val signal = line.signalPatterns
-            .map { it.unscrambleDigit() }
-            .fold(0L) { acc, d -> (acc * 10) + d }
-        val output = line.outputPatterns
-            .map { it.unscrambleDigit() }
-            .fold(0L) { acc, d -> (acc * 10) + d }
-        return Pair(signal, output)
+        return line.outputPatterns
+            .map { pattern ->
+                val realPattern = pattern
+                    .mapNotNull { mapping[it] }
+                    .sorted()
+                    .joinToString("")
+                digits[realPattern] ?: error("Should have a digit pattern for: $realPattern")
+            }
+            .fold(0) { acc, d -> (acc * 10) + d }
     }
 
     fun part1(input: List<String>): Int {
@@ -84,7 +77,7 @@ fun main() {
 
     fun part2(input: List<String>): Int {
         val inputLines = parseInput(input)
-        return inputLines.sumOf { decode(it).second.toInt() }
+        return inputLines.sumOf { decodeOutput(it) }
     }
 
     // test if implementation meets criteria from the description, like:
