@@ -62,13 +62,14 @@ fun main() {
                 val realPattern = pattern.mapNotNull { mapping[it] }.toSet()
                 digits[realPattern] ?: error("Should have a digit pattern for: $realPattern")
             }
-            .fold(0) { acc, d -> (acc * 10) + d }
+            .fold(0) { acc, digit -> (acc * 10) + digit }
     }
 
     fun part1(input: List<String>): Int {
         val inputLines = parseInput(input)
-        val reverseDigits = digits.asSequence().associate { Pair(it.value, it.key) }
-        val lengths = listOf(1, 4, 7, 8).map { reverseDigits[it]?.size ?: 0 }
+        val lengths = digits
+            .filter { it.value in listOf(1, 4, 7, 8) }
+            .map { it.key.size }
         return inputLines
             .flatMap { it.outputPatterns }
             .count { it.length in lengths }
