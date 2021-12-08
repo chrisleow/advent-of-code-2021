@@ -32,22 +32,23 @@ fun main() {
             assert(scrambled.size == real.size) {
                 "restricted 'scrambled' and 'real' strings are the same size"
             }
-            return this.mapValues { (char, possibleChars) ->
-                when (char in scrambled) {
-                    true -> possibleChars intersect real
-                    false -> possibleChars - real
+            return this.mapValues { (scrambledChar, possibleRealChars) ->
+                when (scrambledChar in scrambled) {
+                    true -> possibleRealChars intersect real
+                    false -> possibleRealChars - real
                 }
             }
         }
 
-        // search recursively by testing hypotheses for each digit (and restricting the map as we go)
-        fun search(mapping: Map<Char, Set<Char>>, index: Int): Map<Char, Char>? = when {
-            mapping.any { it.value.isEmpty() } -> null
-            index >= scrambledPatterns.size -> mapping.mapValues { it.value.first() }
+        // search recursively by testing hypotheses for each digit (and restricting the mapping
+        // of possibilities as we go)
+        fun search(possibilities: Map<Char, Set<Char>>, index: Int): Map<Char, Char>? = when {
+            possibilities.any { it.value.isEmpty() } -> null
+            index >= scrambledPatterns.size -> possibilities.mapValues { it.value.first() }
             else -> {
                 val scrambledPattern = scrambledPatterns[index].toSet()
                 digitPatternsByLength[scrambledPattern.size]?.firstNotNullOfOrNull {
-                    search(mapping.restrict(scrambledPattern, it), index + 1)
+                    search(possibilities.restrict(scrambledPattern, it), index + 1)
                 }
             }
         }
