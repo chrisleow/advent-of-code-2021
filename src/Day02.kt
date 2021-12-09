@@ -1,4 +1,8 @@
-enum class Direction { FORWARD, DOWN, UP }
+sealed class Direction {
+    object Forward : Direction()
+    object Down : Direction()
+    object Up : Direction()
+}
 
 fun main() {
 
@@ -6,9 +10,15 @@ fun main() {
         val regex = "(\\w+)\\s+(\\d+)".toRegex()
         return input.mapNotNull {
             regex.matchEntire(it)?.let { match ->
-                val direction = Direction.valueOf(match.groupValues[1].uppercase())
-                val units = match.groupValues[2].toInt()
-                Pair(direction, units)
+                Pair(
+                    when (val direction = match.groupValues[1]) {
+                        "forward" -> Direction.Forward
+                        "up" -> Direction.Up
+                        "down" -> Direction.Down
+                        else -> error("Invalid Direction '$direction'.")
+                    },
+                    match.groupValues[2].toInt(),
+                )
             }
         }
     }
@@ -22,9 +32,9 @@ fun main() {
         val finalState = instructions.fold(initialState) { state, instruction ->
             val (direction, units) = instruction
             when (direction) {
-                Direction.FORWARD -> state.copy(pos = state.pos + units)
-                Direction.UP -> state.copy(depth = state.depth - units)
-                Direction.DOWN -> state.copy(depth = state.depth + units)
+                Direction.Forward -> state.copy(pos = state.pos + units)
+                Direction.Up -> state.copy(depth = state.depth - units)
+                Direction.Down -> state.copy(depth = state.depth + units)
             }
         }
 
@@ -40,12 +50,12 @@ fun main() {
         val finalState = instructions.fold(initialState) { state, instruction ->
             val (direction, units) = instruction
             when (direction) {
-                Direction.FORWARD -> state.copy(
+                Direction.Forward -> state.copy(
                     pos = state.pos + units,
                     depth = state.depth + (state.aim * units),
                 )
-                Direction.UP -> state.copy(aim = state.aim - units)
-                Direction.DOWN -> state.copy(aim = state.aim + units)
+                Direction.Up -> state.copy(aim = state.aim - units)
+                Direction.Down -> state.copy(aim = state.aim + units)
             }
         }
 
