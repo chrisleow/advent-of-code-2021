@@ -1,6 +1,3 @@
-import java.util.LinkedList
-import java.util.Queue
-
 fun main() {
 
     data class Point(val x: Int, val y: Int)
@@ -36,20 +33,18 @@ fun main() {
     }
 
     fun getBasins(heightMap: Map<Point, Int>): List<List<Point>> {
-        fun height(point: Point) = heightMap[point] ?: 10
-
-        return getLowPoints(heightMap).map { lowPoint ->
-            val queue: Queue<Point> = LinkedList(listOf(lowPoint))
-            val basin = mutableSetOf<Point>()
-            while (queue.isNotEmpty()) {
-                val point = queue.remove()
-                if (point !in basin && height(point) < 9) {
-                    basin.add(point)
-                    queue.addAll(point.getAdjacent())
-                }
+        tailrec fun expand(edge: Set<Point>, basin: Set<Point> = emptySet()): Set<Point> {
+            val newEdge = edge
+                .flatMap { it.getAdjacent() }
+                .filter { it !in basin && it !in edge && (heightMap[it] ?: 10) < 9 }
+                .toSet()
+            return when {
+                newEdge.isEmpty() -> basin + edge + newEdge
+                else -> expand(newEdge, basin + edge)
             }
-            basin.toList()
         }
+
+        return getLowPoints(heightMap).map { expand(setOf(it)).toList() }
     }
 
     fun part1(input: List<String>): Int {
