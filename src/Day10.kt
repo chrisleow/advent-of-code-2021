@@ -23,25 +23,12 @@ fun main() {
     }
 
     fun part1(input: List<String>): Long {
+        val charScores = mapOf(')' to 3L, ']' to 57L, '}' to 1197L, '>' to 25137L)
         return input
             .filter { it.isNotBlank() }
-            .mapNotNull { line ->
-                try {
-                    getAutoCompleteString(line)
-                    null
-                }
-                catch (ex: IllegalCharException) {
-                    ex.char
-                }
-            }
-            .sumOf {
-                when (it) {
-                    ')' -> 3L
-                    ']' -> 57L
-                    '}' -> 1197L
-                    '>' -> 25137L
-                    else -> 0L
-                }
+            .sumOf { line ->
+                try { 0L.also { getAutoCompleteString(line) } }
+                catch (ex: IllegalCharException) { charScores[ex.char] ?: 0L }
             }
     }
 
