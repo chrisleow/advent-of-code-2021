@@ -1,12 +1,18 @@
+sealed class AutoCompleteResult {
+    data class Result(val string: String) : AutoCompleteResult()
+    data class IllegalChar(val char: Char) : AutoCompleteResult()
+}
+
 fun main() {
 
-    class IllegalCharException(val char: Char) : Exception("Got an illegal character '${char}'.")
-
-    fun getAutoCompleteString(line: String): String {
+    fun getAutoCompleteString(line: String): AutoCompleteResult {
         val opposites = mapOf('(' to ')', '[' to ']', '{' to '}', '<' to '>')
 
-        tailrec fun getAutoCompleteString(index: Int, closeStack: List<Char>): String = when {
-            index >= line.length -> closeStack.reversed().joinToString("")
+        tailrec fun getAutoCompleteString(index: Int, closeStack: List<Char>): AutoCompleteResult = when {
+            index >= line.length -> {
+                val expectedCloseString = closeStack.reversed().joinToString("")
+                AutoCompleteResult.Result(expectedCloseString)
+            }
             line[index] in "([{<" -> {
                 val expectedCloseChar = opposites[line[index]]!!
                 getAutoCompleteString(index + 1, closeStack + expectedCloseChar)
@@ -14,7 +20,7 @@ fun main() {
             else -> {
                 when (val closeChar = line[index]) {
                     closeStack.last() -> getAutoCompleteString(index + 1, closeStack.dropLast(1))
-                    else -> throw IllegalCharException(closeChar)
+                    else -> AutoCompleteResult.IllegalChar(closeChar)
                 }
             }
         }
@@ -27,8 +33,10 @@ fun main() {
         return input
             .filter { it.isNotBlank() }
             .sumOf { line ->
-                try { 0L.also { getAutoCompleteString(line) } }
-                catch (ex: IllegalCharException) { charScores[ex.char] ?: 0L }
+                when (val result = getAutoCompleteString(line)) {
+                    is AutoCompleteResult.Result -> 0L
+                    is AutoCompleteResult.IllegalChar -> charScores[result.char] ?: 0L
+                }
             }
     }
 
@@ -36,10 +44,7 @@ fun main() {
         val charScores = mapOf(')' to 1, ']' to 2, '}' to 3, '>' to 4)
         return input
             .filter { it.isNotBlank() }
-            .mapNotNull {
-                try { getAutoCompleteString(it) }
-                catch(ex: IllegalCharException) { null }
-            }
+            .mapNotNull { (getAutoCompleteString(it) as? AutoCompleteResult.Result)?.string }
             .map { chars ->
                 chars.fold(0L) { score, char ->
                     (score * 5) + (charScores[char] ?: error("Shouldn't get here."))
