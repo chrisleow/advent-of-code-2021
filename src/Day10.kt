@@ -21,15 +21,17 @@ fun main() {
     }
 
     fun part2(input: List<String>): Long {
-        val closeChars = listOf('(' to ')', '[' to ']', '{' to '}', '<' to '>')
-        val charScores = mapOf(')' to 1, ']' to 2, '}' to 3, '>' to 4)
+        val charScores = mapOf('(' to 1, '[' to 2, '{' to 3, '<' to 4)
         return input
             .asSequence()
             .filter { line -> line.isNotBlank() }
             .map { line -> collapse(line) }
             .filter { collapsedLine -> ")]}>".all { c -> c !in collapsedLine } }
-            .map { collapsedLine -> closeChars.fold(collapsedLine.reversed()) { s, p -> s.replace(p.first, p.second) } }
-            .map { autoCompleteLine -> autoCompleteLine.fold(0L) { sc, c -> (sc * 5) + (charScores[c] ?: 0) } }
+            .map { collapsedLine ->
+                collapsedLine
+                    .reversed()
+                    .fold(0L) { score, c -> (score * 5) + (charScores[c] ?: 0) }
+            }
             .toList()
             .let { allScores -> allScores.sorted()[allScores.size / 2] }
     }
