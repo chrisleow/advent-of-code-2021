@@ -3,6 +3,7 @@ fun main() {
     data class Point(val x: Int, val y: Int)
 
     fun parseInput(input: List<String>): Map<Point, Int> = input
+        .asSequence()
         .filter { it.isNotBlank() }
         .flatMapIndexed { y, line ->
             line.mapIndexed { x, char ->
@@ -29,30 +30,32 @@ fun main() {
         println()
     }
 
-    fun Point.getAdjacent() = (-1 .. 1)
-        .flatMap { x ->
-            (-1 .. 1).mapNotNull { y ->
-                if (x != 0 || y != 0) Point(this.x + x, this.y + y) else null
-            }
-        }
-        .toSet()
+    fun Point.getAdjacent() = setOf(
+        Point(this.x - 1, this.y - 1),
+        Point(this.x, this.y - 1),
+        Point(this.x + 1, this.y - 1),
+        Point(this.x - 1, this.y),
+        Point(this.x + 1, this.y),
+        Point(this.x - 1, this.y + 1),
+        Point(this.x, this.y + 1),
+        Point(this.x + 1, this.y + 1),
+    )
 
     fun Map<Point, Int>.next(): Map<Point, Int> {
         tailrec fun cascadeFlashes(map: Map<Point, Int>): Map<Point, Int> {
             val flashPoints = map.filter { it.value > 9 }.keys
-            if (flashPoints.isEmpty()) {
-                return map
-            }
-
-            return cascadeFlashes(
-                map.mapValues { (point, oldValue) ->
-                    when {
-                        oldValue == 0 -> 0
-                        point in flashPoints -> 0
-                        else -> oldValue + (point.getAdjacent() intersect flashPoints).size
+            return when {
+                flashPoints.isEmpty() -> map
+                else -> cascadeFlashes(
+                    map.mapValues { (point, energy) ->
+                        when {
+                            energy == 0 -> 0
+                            point in flashPoints -> 0
+                            else -> energy + (point.getAdjacent() intersect flashPoints).size
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
         return cascadeFlashes(this.mapValues { it.value + 1 })
@@ -69,10 +72,7 @@ fun main() {
     fun part2(input: List<String>): Int {
         val initialMap = parseInput(input)
         return generateSequence(initialMap) { map -> map.next() }
-            .withIndex()
-            .filter { (_, map) -> map.values.all { it == 0 } }
-            .map { (index, _) -> index }
-            .first()
+            .indexOfFirst { map -> map.values.all { it == 0 } }
     }
 
     // test if implementation meets criteria from the description, like:

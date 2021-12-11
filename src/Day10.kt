@@ -1,55 +1,36 @@
-sealed class AutoCompleteResult {
-    data class Result(val string: String) : AutoCompleteResult()
-    data class IllegalChar(val char: Char) : AutoCompleteResult()
-}
-
 fun main() {
 
-    fun getAutoCompleteString(line: String): AutoCompleteResult {
-        val opposites = mapOf('(' to ')', '[' to ']', '{' to '}', '<' to '>')
+    val regex = listOf("()", "[]" ,"{}", "<>")
+        .joinToString("|") { Regex.escape(it) }
+        .toRegex()
 
-        tailrec fun getAutoCompleteString(index: Int, closeStack: List<Char>): AutoCompleteResult = when {
-            index >= line.length -> {
-                val expectedCloseString = closeStack.reversed().joinToString("")
-                AutoCompleteResult.Result(expectedCloseString)
-            }
-            line[index] in "([{<" -> {
-                val expectedCloseChar = opposites[line[index]]!!
-                getAutoCompleteString(index + 1, closeStack + expectedCloseChar)
-            }
-            else -> {
-                when (val closeChar = line[index]) {
-                    closeStack.last() -> getAutoCompleteString(index + 1, closeStack.dropLast(1))
-                    else -> AutoCompleteResult.IllegalChar(closeChar)
-                }
-            }
+    tailrec fun collapse(line: String): String =
+        when (val newLine = regex.replace(line, "")) {
+            line -> line
+            else -> collapse(newLine)
         }
-
-        return getAutoCompleteString(0, emptyList())
-    }
 
     fun part1(input: List<String>): Long {
         val charScores = mapOf(')' to 3L, ']' to 57L, '}' to 1197L, '>' to 25137L)
         return input
-            .filter { it.isNotBlank() }
-            .sumOf { line ->
-                when (val result = getAutoCompleteString(line)) {
-                    is AutoCompleteResult.Result -> 0L
-                    is AutoCompleteResult.IllegalChar -> charScores[result.char] ?: 0L
-                }
-            }
+            .asSequence()
+            .filter { line -> line.isNotBlank() }
+            .map { line -> collapse(line) }
+            .mapNotNull { collapsedLine -> collapsedLine.firstOrNull { c -> c in ")]}>" } }
+            .sumOf { illegalChar -> charScores[illegalChar] ?: 0L }
     }
 
     fun part2(input: List<String>): Long {
+        val closeChars = listOf('(' to ')', '[' to ']', '{' to '}', '<' to '>')
         val charScores = mapOf(')' to 1, ']' to 2, '}' to 3, '>' to 4)
         return input
-            .filter { it.isNotBlank() }
-            .mapNotNull { (getAutoCompleteString(it) as? AutoCompleteResult.Result)?.string }
-            .map { chars ->
-                chars.fold(0L) { score, char ->
-                    (score * 5) + (charScores[char] ?: error("Shouldn't get here."))
-                }
-            }
+            .asSequence()
+            .filter { line -> line.isNotBlank() }
+            .map { line -> collapse(line) }
+            .filter { collapsedLine -> ")]}>".all { c -> c !in collapsedLine } }
+            .map { collapsedLine -> closeChars.fold(collapsedLine.reversed()) { s, p -> s.replace(p.first, p.second) } }
+            .map { autoCompleteLine -> autoCompleteLine.fold(0L) { sc, c -> (sc * 5) + (charScores[c] ?: 0) } }
+            .toList()
             .let { allScores -> allScores.sorted()[allScores.size / 2] }
     }
 
