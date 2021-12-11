@@ -1,6 +1,4 @@
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 
 fun main() {
 
@@ -9,11 +7,6 @@ fun main() {
         .split(",")
         .filter { it.isNotBlank() }
         .map { it.trim().toInt() }
-
-    fun getMinMaxPositions(positions: List<Int>): Pair<Int, Int> = positions
-        .fold(Pair(Int.MAX_VALUE, Int.MIN_VALUE)) { minMax, pos ->
-            Pair(min(minMax.first, pos), max(minMax.second, pos))
-        }
 
     // let's go for maximum efficiency :)
     fun getMinimumCost(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {
@@ -40,7 +33,8 @@ fun main() {
 
     fun part1(input: List<String>): Int {
         val positions = parseInput(input)
-        val (minPos, maxPos) = getMinMaxPositions(positions)
+        val minPos = positions.minOrNull() ?: error("Empty List")
+        val maxPos = positions.maxOrNull() ?: error("Empty List")
         return getMinimumCost(minPos, maxPos) { pos ->
             positions.sumOf { abs(it - pos) }
         }
@@ -48,7 +42,8 @@ fun main() {
 
     fun part2(input: List<String>): Int {
         val positions = parseInput(input)
-        val (minPos, maxPos) = getMinMaxPositions(positions)
+        val minPos = positions.minOrNull() ?: error("Empty List")
+        val maxPos = positions.maxOrNull() ?: error("Empty List")
         return getMinimumCost(minPos, maxPos) { pos ->
             positions.sumOf {
                 val delta = abs(it - pos)

@@ -1,18 +1,8 @@
 fun main() {
 
     data class BingoRecord(val move: Int, val number: Int)
-
-    data class Grid(
-        val numbers: Map<Pair<Int, Int>, Int>,
-        val marks: Set<Pair<Int, Int>>,
-        val bingo: BingoRecord?,
-    )
-
-    data class State(
-        val move: Int,
-        val remainingNumbers: List<Int>,
-        val grids: List<Grid>
-    )
+    data class Grid(val numbers: Map<Pair<Int, Int>, Int>, val marks: Set<Pair<Int, Int>>, val bingo: BingoRecord?)
+    data class State(val move: Int, val remainingNumbers: List<Int>, val grids: List<Grid>)
 
     fun State.print() {
         println("Remaining Numbers: ${this.remainingNumbers}")
