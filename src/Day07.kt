@@ -2,11 +2,10 @@ import kotlin.math.abs
 
 fun main() {
 
-    fun parseInput(input: List<String>): List<Int> = input
-        .joinToString(",")
-        .split(",")
-        .filter { it.isNotBlank() }
-        .map { it.trim().toInt() }
+    fun parseInput(input: List<String>): List<Int> {
+        val regex = "\\d+".toRegex()
+        return input.flatMap { line -> regex.findAll(line).map { it.value.toInt()} }
+    }
 
     // let's go for maximum efficiency :)
     fun getMinimumCost(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {

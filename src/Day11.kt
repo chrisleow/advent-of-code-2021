@@ -2,15 +2,13 @@ fun main() {
 
     data class Point(val x: Int, val y: Int)
 
-    fun parseInput(input: List<String>): Map<Point, Int> = input
-        .asSequence()
-        .filter { it.isNotBlank() }
-        .flatMapIndexed { y, line ->
-            line.mapIndexed { x, char ->
-                Point(x, y) to char.toString().toInt()
+    fun parseInput(input: List<String>): Map<Point, Int> = buildMap {
+        input.filter { it.isNotBlank() }.forEachIndexed { y, line ->
+            line.trim().forEachIndexed { x, char ->
+                put(Point(x, y), char.toString().toInt())
             }
         }
-        .toMap()
+    }
 
     fun Map<Point, Int>.print() {
         val maxX = this.keys.maxOf { it.x }
@@ -31,14 +29,14 @@ fun main() {
     }
 
     fun Point.getAdjacent() = setOf(
-        Point(this.x - 1, this.y - 1),
-        Point(this.x, this.y - 1),
-        Point(this.x + 1, this.y - 1),
-        Point(this.x - 1, this.y),
-        Point(this.x + 1, this.y),
-        Point(this.x - 1, this.y + 1),
-        Point(this.x, this.y + 1),
-        Point(this.x + 1, this.y + 1),
+        Point(x - 1, y - 1),
+        Point(x, y - 1),
+        Point(x + 1, y - 1),
+        Point(x - 1, y),
+        Point(x + 1, y),
+        Point(x - 1, y + 1),
+        Point(x, y + 1),
+        Point(x + 1, y + 1),
     )
 
     fun Map<Point, Int>.next(): Map<Point, Int> {

@@ -1,11 +1,11 @@
 fun main() {
 
-    val regex = listOf("()", "[]" ,"{}", "<>")
+    val bracketsRegex = listOf("()", "[]" ,"{}", "<>")
         .joinToString("|") { Regex.escape(it) }
         .toRegex()
 
     tailrec fun collapse(line: String): String =
-        when (val newLine = regex.replace(line, "")) {
+        when (val newLine = bracketsRegex.replace(line, "")) {
             line -> line
             else -> collapse(newLine)
         }
@@ -22,18 +22,16 @@ fun main() {
 
     fun part2(input: List<String>): Long {
         val charScores = mapOf('(' to 1, '[' to 2, '{' to 3, '<' to 4)
-        return input
+        val allScores = input
             .asSequence()
             .filter { line -> line.isNotBlank() }
             .map { line -> collapse(line) }
             .filter { collapsedLine -> ")]}>".all { c -> c !in collapsedLine } }
-            .map { collapsedLine ->
-                collapsedLine
-                    .reversed()
-                    .fold(0L) { score, c -> (score * 5) + (charScores[c] ?: 0) }
-            }
+            .map { collapsedLine -> collapsedLine.reversed() }
+            .map { revLine -> revLine.fold(0L) { sc, c -> (sc * 5) + (charScores[c] ?: 0) } }
+            .sorted()
             .toList()
-            .let { allScores -> allScores.sorted()[allScores.size / 2] }
+        return allScores.sorted()[allScores.size / 2]
     }
 
     // test if implementation meets criteria from the description, like:

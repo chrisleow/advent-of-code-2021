@@ -1,36 +1,28 @@
 fun main() {
 
+    fun Iterable<String>.onesAt(index: Int) = this.count { it[index] == '1' }
+    fun Iterable<String>.zeroesAt(index: Int) = this.count { it[index] == '0' }
+
     fun getGamma(input: List<String>): Int =
         (0 until input.maxOf { it.length })
-            .joinToString("") { index ->
-                val count1 = input.count { it[index] == '1' }
-                val count0 = input.count { it[index] == '0' }
-                if (count1 > count0) "1" else "0"
-            }
+            .joinToString("") { idx -> if (input.onesAt(idx) > input.zeroesAt(idx)) "1" else "0" }
             .toInt(2)
 
     fun getEpsilon(input: List<String>): Int =
         (0 until input.maxOf { it.length })
-            .joinToString("") { index ->
-                val count1 = input.count { it[index] == '1' }
-                val count0 = input.count { it[index] == '0' }
-                if (count1 < count0) "1" else "0"
-            }
+            .joinToString("") { idx -> if (input.onesAt(idx) < input.zeroesAt(idx)) "1" else "0" }
             .toInt(2)
 
     fun getRating(input: List<String>, getCriteriaBit: (count1: Int, count0: Int) -> Char): Int {
-        tailrec fun getNumber(index: Int, numbers: List<String>): String {
+        tailrec fun getNumber(index: Int, numbers: List<String>): String =
             when (numbers.size) {
                 0 -> error("Should never get to 0 numbers.")
-                1 -> return numbers.first()
+                1 -> numbers.single()
+                else -> {
+                    val criteriaBit = getCriteriaBit(numbers.onesAt(index), numbers.zeroesAt(index))
+                    getNumber(index + 1, numbers.filter { it[index] == criteriaBit })
+                }
             }
-
-            // filter and move on one index recursively
-            val count1 = numbers.count { it[index] == '1' }
-            val count0 = numbers.count { it[index] == '0' }
-            val criteriaBit = getCriteriaBit(count1, count0)
-            return getNumber(index + 1, numbers.filter { it[index] == criteriaBit })
-        }
 
         return getNumber(0, input).toInt(2)
     }

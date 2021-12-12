@@ -23,27 +23,14 @@ fun main() {
         }
     }
 
-    fun <T> Iterable<T>.split(isDelimiter: (T) -> Boolean): List<List<T>> {
-        val input = this
-        val chunks = sequence {
-            var chunk = mutableListOf<T>()
-            input.forEach { item ->
-                when {
-                    !isDelimiter(item) -> {
-                        chunk.add(item)
-                    }
-                    chunk.isNotEmpty() -> {
-                        yield(chunk)
-                        chunk = mutableListOf()
-                    }
-                }
-            }
-            if (chunk.isNotEmpty()) {
-                yield(chunk)
+    fun <T> Iterable<T>.split(isDelimiter: (T) -> Boolean): List<List<T>> = this
+        .fold(listOf(emptyList<T>())) { lists, element ->
+            when (isDelimiter(element)) {
+                true -> lists + listOf(emptyList())
+                false -> lists.dropLast(1) + listOf(lists.last() + element)
             }
         }
-        return chunks.toList()
-    }
+        .filter { it.isNotEmpty() }
 
     fun parseInput(input: List<String>): State {
         val numbers = input[0]
@@ -56,14 +43,19 @@ fun main() {
             .split { it.isBlank() }
             .filter { it.isNotEmpty() }
             .map { lines ->
-                val gridNumbers = lines
-                    .flatMapIndexed { y, line ->
-                        line.split(" ")
-                            .filter { it.isNotBlank() }
-                            .mapIndexed { x, num -> Pair(x, y) to num.toInt() }
-                    }
-                    .toMap()
-                Grid(numbers = gridNumbers, marks = emptySet(), bingo = null)
+                Grid(
+                    numbers = buildMap {
+                        lines.forEachIndexed { y, line ->
+                            line.split(" ")
+                                .filter { it.isNotBlank() }
+                                .forEachIndexed { x, number ->
+                                    put(Pair(x, y), number.toInt())
+                                }
+                        }
+                    },
+                    marks = emptySet(),
+                    bingo = null,
+                )
             }
 
         return State(move = 0, remainingNumbers = numbers, grids = grids)
@@ -81,7 +73,7 @@ fun main() {
         positions.toList()
     }
 
-    fun State.playOneMove(): State? {
+    fun State.next(): State? {
         val currentMove = this.move + 1
         val currentNumber = this.remainingNumbers.firstOrNull()
             ?: return null
@@ -96,10 +88,11 @@ fun main() {
             grid.copy(
                 marks = newMarks,
                 bingo = grid.bingo ?: run {
-                    if (winningPositions.any { newMarks.containsAll(it) })
+                    if (winningPositions.any { newMarks.containsAll(it) }) {
                         BingoRecord(currentMove, currentNumber)
-                    else
+                    } else {
                         null
+                    }
                 }
             )
         }
@@ -124,7 +117,7 @@ fun main() {
 
     fun part1(input: List<String>): Int {
         val initialState = parseInput(input)
-        val states = generateSequence(initialState) { it.playOneMove() }
+        val states = generateSequence(initialState) { it.next() }
         val winningState = states.first { state -> state.grids.any { it.bingo != null } }
         val winningGrid = winningState.grids.first { it.bingo != null }
         return winningGrid.getScore()
@@ -132,7 +125,7 @@ fun main() {
 
     fun part2(input: List<String>): Int {
         val initialState = parseInput(input)
-        val states = generateSequence(initialState) { it.playOneMove() }
+        val states = generateSequence(initialState) { it.next() }
         val lastState = states.first { state -> state.grids.all { it.bingo != null } }
         val losingGrid = lastState.grids.maxByOrNull { it.bingo?.move ?: 0 }
             ?: error("Shouldn't have a null losing grid.")

@@ -1,16 +1,16 @@
 fun main() {
 
-    val digits = mapOf(
-        "ABCEFG".toSet() to 0,
-        "CF".toSet() to 1,
-        "ACDEG".toSet() to 2,
-        "ACDFG".toSet() to 3,
-        "BCDF".toSet() to 4,
-        "ABDFG".toSet() to 5,
-        "ABDEFG".toSet() to 6,
-        "ACF".toSet() to 7,
-        "ABCDEFG".toSet() to 8,
-        "ABCDFG".toSet() to 9,
+    val digits = listOf(
+        0 to "ABCEFG".toSet(),
+        1 to "CF".toSet(),
+        2 to "ACDEG".toSet(),
+        3 to "ACDFG".toSet(),
+        4 to "BCDF".toSet(),
+        5 to "ABDFG".toSet(),
+        6 to "ABDEFG".toSet(),
+        7 to "ACF".toSet(),
+        8 to "ABCDEFG".toSet(),
+        9 to "ABCDFG".toSet(),
     )
 
     data class InputLine(val signalPatterns: List<String>, val outputPatterns: List<String>)
@@ -25,26 +25,22 @@ fun main() {
 
     fun decodeOutput(line: InputLine): Int {
         val scrambledPatterns = line.signalPatterns + line.outputPatterns
-        val digitPatternsByLength = digits.keys.groupBy { it.size }
+        val digitPatternsByLength = digits.map { it.second }.groupBy { it.size }
 
         // boil down set of possibilities assuming a digit pattern to an output pattern
-        fun Map<Char, Set<Char>>.restrict(scrambled: Set<Char>, real: Set<Char>): Map<Char, Set<Char>> {
-            assert(scrambled.size == real.size) {
-                "restricted 'scrambled' and 'real' strings are the same size"
-            }
-            return this.mapValues { (scrambledChar, possibleRealChars) ->
-                when (scrambledChar in scrambled) {
-                    true -> possibleRealChars intersect real
-                    false -> possibleRealChars - real
+        fun Map<Char, Set<Char>>.restrict(scrambledChars: Set<Char>, realChars: Set<Char>) =
+            this.mapValues { (scrambledChar, existingRealChars) ->
+                when (scrambledChar in scrambledChars) {
+                    true -> existingRealChars intersect realChars
+                    false -> existingRealChars - realChars
                 }
             }
-        }
 
         // search recursively by testing hypotheses for each digit (and restricting the mapping
         // of possibilities as we go)
         fun search(possibilities: Map<Char, Set<Char>>, index: Int): Map<Char, Char>? = when {
             possibilities.any { it.value.isEmpty() } -> null
-            index >= scrambledPatterns.size -> possibilities.mapValues { it.value.first() }
+            index >= scrambledPatterns.size -> possibilities.mapValues { it.value.single() }
             else -> {
                 val scrambledPattern = scrambledPatterns[index].toSet()
                 digitPatternsByLength[scrambledPattern.size]?.firstNotNullOfOrNull {
@@ -60,7 +56,7 @@ fun main() {
         return line.outputPatterns
             .map { pattern ->
                 val realPattern = pattern.mapNotNull { mapping[it] }.toSet()
-                digits[realPattern] ?: error("Should have a digit pattern for: $realPattern")
+                digits.first { it.second == realPattern }.first
             }
             .fold(0) { acc, digit -> (acc * 10) + digit }
     }
@@ -68,8 +64,8 @@ fun main() {
     fun part1(input: List<String>): Int {
         val inputLines = parseInput(input)
         val lengths = digits
-            .filter { it.value in listOf(1, 4, 7, 8) }
-            .map { it.key.size }
+            .filter { it.first in listOf(1, 4, 7, 8) }
+            .map { it.second.size }
         return inputLines
             .flatMap { it.outputPatterns }
             .count { it.length in lengths }

@@ -2,14 +2,13 @@ fun main() {
 
     data class Point(val x: Int, val y: Int)
 
-    fun parseInput(input: List<String>): Map<Point, Int> = input
-        .filter { it.isNotBlank() }
-        .flatMapIndexed { y, line ->
-            line.trim().mapIndexed { x, char ->
-                Point(x, y) to char.toString().toInt()
+    fun parseInput(input: List<String>): Map<Point, Int> = buildMap {
+        input.filter { it.isNotBlank() }.forEachIndexed { y, line ->
+            line.trim().forEachIndexed { x, char ->
+                put(Point(x, y), char.toString().toInt())
             }
         }
-        .toMap()
+    }
 
     fun Point.getAdjacent() = listOf(
         Point(x, y + 1),
@@ -21,7 +20,6 @@ fun main() {
     fun getLowPoints(heightMap: Map<Point, Int>): List<Point> {
         val maxX = heightMap.keys.maxOf { it.x }
         val maxY = heightMap.keys.maxOf { it.y }
-
         return (0 .. maxX).flatMap { x ->
             (0 .. maxY).mapNotNull { y ->
                 val point = Point(x, y)
@@ -34,13 +32,13 @@ fun main() {
 
     fun getBasins(heightMap: Map<Point, Int>): List<List<Point>> {
         tailrec fun expand(edge: Set<Point>, basin: Set<Point> = emptySet()): Set<Point> {
-            val newEdge = edge
+            val nextEdge = edge
                 .flatMap { it.getAdjacent() }
                 .filter { it !in basin && it !in edge && (heightMap[it] ?: 10) < 9 }
                 .toSet()
             return when {
-                newEdge.isEmpty() -> basin + edge + newEdge
-                else -> expand(newEdge, basin + edge)
+                nextEdge.isEmpty() -> basin + edge
+                else -> expand(nextEdge, basin + edge)
             }
         }
 
@@ -59,7 +57,7 @@ fun main() {
             .map { it.size }
             .sortedByDescending { it }
             .take(3)
-            .fold(1) { acc, size -> acc * size }
+            .fold(1, Int::times)
     }
 
     // test if implementation meets criteria from the description, like:
