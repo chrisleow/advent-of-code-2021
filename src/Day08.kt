@@ -1,31 +1,32 @@
 fun main() {
 
-    val digits = listOf(
-        0 to "ABCEFG".toSet(),
-        1 to "CF".toSet(),
-        2 to "ACDEG".toSet(),
-        3 to "ACDFG".toSet(),
-        4 to "BCDF".toSet(),
-        5 to "ABDFG".toSet(),
-        6 to "ABDEFG".toSet(),
-        7 to "ACF".toSet(),
-        8 to "ABCDEFG".toSet(),
-        9 to "ABCDFG".toSet(),
-    )
-
     data class InputLine(val signalPatterns: List<String>, val outputPatterns: List<String>)
+    data class Digit(val value: Int, val pattern: Set<Char>)
+
+    val digits = listOf(
+        Digit(0, "ABCEFG".toSet()),
+        Digit(1, "CF".toSet()),
+        Digit(2, "ACDEG".toSet()),
+        Digit(3, "ACDFG".toSet()),
+        Digit(4, "BCDF".toSet()),
+        Digit(5, "ABDFG".toSet()),
+        Digit(6, "ABDEFG".toSet()),
+        Digit(7, "ACF".toSet()),
+        Digit(8, "ABCDEFG".toSet()),
+        Digit(9, "ABCDFG".toSet()),
+    )
 
     fun parseInput(input: List<String>): List<InputLine> = input
         .filter { it.isNotBlank() && "|" in it }
         .map { line ->
             line.split("|")
                 .map { section -> section.split(" ").filter { it.isNotBlank() } }
-                .let { InputLine(it[0], it[1]) }
+                .let { InputLine(it.dropLast(1).flatten(), it.last()) }
         }
 
     fun decodeOutput(line: InputLine): Int {
         val scrambledPatterns = line.signalPatterns + line.outputPatterns
-        val digitPatternsByLength = digits.map { it.second }.groupBy { it.size }
+        val digitPatternsByLength = digits.map { it.pattern }.groupBy { it.size }
 
         // boil down set of possibilities assuming a digit pattern to an output pattern
         fun Map<Char, Set<Char>>.restrict(scrambledChars: Set<Char>, realChars: Set<Char>) =
@@ -49,23 +50,24 @@ fun main() {
             }
         }
 
+        fun unscramble(pattern: String, mapping: Map<Char, Char>): Int {
+            val realPattern = pattern.mapNotNull { mapping[it] }.toSet()
+            return digits.first { it.pattern == realPattern }.value
+        }
+
         // start search at the beginning with all possibilities
         val mapping = search("abcdefg".associateWith { "ABCDEFG".toSet() }, 0)
             ?: error("Should have a final mapping")
-
         return line.outputPatterns
-            .map { pattern ->
-                val realPattern = pattern.mapNotNull { mapping[it] }.toSet()
-                digits.first { it.second == realPattern }.first
-            }
+            .map { pattern -> unscramble(pattern, mapping) }
             .fold(0) { acc, digit -> (acc * 10) + digit }
     }
 
     fun part1(input: List<String>): Int {
         val inputLines = parseInput(input)
         val lengths = digits
-            .filter { it.first in listOf(1, 4, 7, 8) }
-            .map { it.second.size }
+            .filter { it.value in listOf(1, 4, 7, 8) }
+            .map { it.pattern.size }
         return inputLines
             .flatMap { it.outputPatterns }
             .count { it.length in lengths }

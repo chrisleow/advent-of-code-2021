@@ -28,6 +28,7 @@ fun main() {
 
     fun part1(input: List<String>): Int {
         val pointCounts = parseInput(input)
+            .asSequence()
             .filter { it.from.x == it.to.x || it.from.y == it.to.y }
             .flatMap { it.interpolate() }
             .groupingBy { it }
@@ -37,6 +38,7 @@ fun main() {
 
     fun part2(input: List<String>): Int {
         val pointCounts = parseInput(input)
+            .asSequence()
             .flatMap { it.interpolate() }
             .groupingBy { it }
             .eachCount()

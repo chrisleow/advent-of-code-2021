@@ -21,8 +21,9 @@ fun main() {
             else -> {
                 val middle = (left + right) / 2
                 when {
-                    cost(middle) <= cost(middle + 1) -> search(left, middle)
-                    else -> search(middle + 1, right)
+                    cost(middle) < cost(middle + 1) -> search(left, middle)
+                    cost(middle) > cost(middle + 1) -> search(middle + 1, right)
+                    else -> error("I'm not built for this!")
                 }
             }
         }
