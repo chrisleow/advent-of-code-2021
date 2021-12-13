@@ -1,7 +1,8 @@
 fun main() {
 
+    data class Point(val x: Int, val y: Int)
     data class BingoRecord(val move: Int, val number: Int)
-    data class Grid(val numbers: Map<Pair<Int, Int>, Int>, val marks: Set<Pair<Int, Int>>, val bingo: BingoRecord?)
+    data class Grid(val numbers: Map<Point, Int>, val marks: Set<Point>, val bingo: BingoRecord?)
     data class State(val move: Int, val remainingNumbers: List<Int>, val grids: List<Grid>)
 
     fun State.print() {
@@ -10,8 +11,9 @@ fun main() {
         this.grids.forEach { grid ->
             (0 until 5).forEach { y ->
                 (0 until 5).forEach { x ->
-                    val number = grid.numbers[Pair(x, y)]
-                    val mark = if (Pair(x, y) in grid.marks) "*" else " "
+                    val point = Point(x, y)
+                    val number = grid.numbers[point]
+                    val mark = if (point in grid.marks) "*" else " "
                     print("$number$mark".padStart(4))
                 }
                 println()
@@ -33,15 +35,15 @@ fun main() {
         .filter { it.isNotEmpty() }
 
     fun parseInput(input: List<String>): State {
-        val numbers = input[0]
+        val groups = input.split { it.isBlank() }
+        val numbers = groups
+            .first()
+            .joinToString(",")
             .split(",")
             .filter { it.isNotBlank() }
             .map { it.toInt() }
-
-        val grids = input
+        val grids = groups
             .drop(1)
-            .split { it.isBlank() }
-            .filter { it.isNotEmpty() }
             .map { lines ->
                 Grid(
                     numbers = buildMap {
@@ -49,7 +51,7 @@ fun main() {
                             line.split(" ")
                                 .filter { it.isNotBlank() }
                                 .forEachIndexed { x, number ->
-                                    put(Pair(x, y), number.toInt())
+                                    put(Point(x, y), number.toInt())
                                 }
                         }
                     },
@@ -64,10 +66,10 @@ fun main() {
     val winningPositions = run {
         val positions = sequence {
             (0 until 5).forEach { y ->
-                yield((0 until 5).map { x -> Pair(x, y) }.toSet())
+                yield((0 until 5).map { x -> Point(x, y) }.toSet())
             }
             (0 until 5).forEach { x ->
-                yield((0 until 5).map { y -> Pair(x, y) }.toSet())
+                yield((0 until 5).map { y -> Point(x, y) }.toSet())
             }
         }
         positions.toList()

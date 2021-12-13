@@ -1,26 +1,28 @@
 fun main() {
 
     fun parseLinks(input: List<String>): Map<String, List<String>> {
-        val regex = "(\\w+)-(\\w+)".toRegex()
+        val linkRegex = "(\\w+)-(\\w+)".toRegex()
         return input
-            .mapNotNull { regex.matchEntire(it)?.groupValues }
+            .mapNotNull { linkRegex.matchEntire(it)?.groupValues }
             .flatMap { gv -> listOf(gv[1] to gv[2], gv[2] to gv[1]) }
             .filter { (left, right) -> right != "start" && left != "end" }
             .groupBy({ it.first }) { it.second }
     }
 
     fun countPaths(links: Map<String, List<String>>, smallCaveDoubleVisitAllowed: Boolean): Int {
-        fun countPaths(current: String, visited: List<String>, smallVisitAllowed: Boolean): Int =
-            when (current == "end") {
-                true -> 1
-                false -> (links[current]?.asSequence() ?: emptySequence())
-                    .filter { node -> smallVisitAllowed || node == node.uppercase() || node !in visited }
-                    .sumOf { node ->
-                        val smallVisitStillAllowed = smallVisitAllowed &&
-                                (node !in visited || node == node.uppercase())
-                        countPaths(node, visited + current, smallVisitStillAllowed)
+        fun String.isSmall() = (this == this.lowercase())
+        fun countPaths(current: String, visited: List<String>, doubleVisitAllowed: Boolean): Int {
+            return when {
+                current.isSmall() && !doubleVisitAllowed && current in visited -> 0
+                current == "end" -> 1
+                else -> {
+                    val doubleVisitStillAllowed = doubleVisitAllowed && (!current.isSmall() || current !in visited)
+                    (links[current]?.asSequence() ?: emptySequence()).sumOf { node ->
+                        countPaths(node, visited + current, doubleVisitStillAllowed)
                     }
+                }
             }
+        }
         return countPaths("start", emptyList(), smallCaveDoubleVisitAllowed)
     }
 
