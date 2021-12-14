@@ -1,26 +1,26 @@
 fun main() {
 
-    data class CharPair(val left: Char, val right: Char, val isStart: Boolean, val isEnd: Boolean)
+    data class CharPair(val left: Char, val right: Char)
 
-    fun parseInput(input: List<String>): Pair<String, Map<Pair<Char, Char>, Char>> {
+    fun parseInput(input: List<String>): Pair<String, Map<CharPair, Char>> {
         val regex = "(\\w)(\\w)\\s*->\\s*(\\w)".toRegex()
         val initialString = input.first().trim()
         val rules = input
             .mapNotNull { line -> regex.matchEntire(line)?.groupValues }
-            .associate { gv -> Pair(gv[1].single(), gv[2].single()) to gv[3].single() }
+            .associate { gv -> CharPair(gv[1].single(), gv[2].single()) to gv[3].single() }
         return Pair(initialString, rules)
     }
 
-    fun Map<CharPair, Long>.next(ruleMap: Map<Pair<Char, Char>, Char>): Map<CharPair, Long> {
+    fun Map<CharPair, Long>.next(ruleMap: Map<CharPair, Char>): Map<CharPair, Long> {
         return this.entries
             .flatMap { entry ->
-                when (val insertChar = ruleMap[Pair(entry.key.left, entry.key.right)]) {
+                when (val insertChar = ruleMap[entry.key]) {
                     null -> listOf(
                         Pair(entry.key, entry.value),
                     )
                     else -> listOf(
-                        Pair(entry.key.copy(right = insertChar, isEnd = false), entry.value),
-                        Pair(entry.key.copy(left = insertChar, isStart = false), entry.value),
+                        Pair(entry.key.copy(right = insertChar), entry.value),
+                        Pair(entry.key.copy(left = insertChar), entry.value),
                     )
                 }
             }
@@ -30,31 +30,23 @@ fun main() {
 
     fun getElementDifference(input: List<String>, steps: Int): Long {
         val (initialString, ruleMap) = parseInput(input)
+
+        // convert to a map of pairs of neighbours (with counts)
         val initialMap = initialString
             .zipWithNext()
-            .withIndex()
-            .map { (index, pair) ->
-                CharPair(
-                    left = pair.first,
-                    right = pair.second,
-                    isStart = (index == 0),
-                    isEnd = (index == initialString.length - 2),
-                )
-            }
+            .map { (left, right) -> CharPair(left, right) }
             .groupingBy { it }
             .eachCount()
             .mapValues { it.value.toLong() }
-
         val finalMap = generateSequence(initialMap) { it.next(ruleMap) }
             .drop(steps)
             .first()
+
+        // remember that each element is double-counted, remember to correct for slight under-counting
+        // at the start and end of the sequence.
         val elementCounts = finalMap
-            .flatMap { (charPair, count) ->
-                listOf(
-                    Pair(charPair.left, if (charPair.isStart) count * 2 else count),
-                    Pair(charPair.right, if (charPair.isEnd) count * 2 else count),
-                )
-            }
+            .flatMap { (charPair, count) -> listOf(Pair(charPair.left, count), Pair(charPair.right, count)) }
+            .plus(listOf(Pair(initialString.first(), 1L), Pair(initialString.last(), 1L)))
             .groupBy({ it.first }) { it.second }
             .mapValues { it.value.sum() / 2 }
         return elementCounts.maxOf { it.value } - elementCounts.minOf { it.value }
