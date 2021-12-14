@@ -13,14 +13,14 @@ fun main() {
 
     fun Map<CharPair, Long>.next(ruleMap: Map<CharPair, Char>): Map<CharPair, Long> {
         return this.entries
-            .flatMap { entry ->
-                when (val insertChar = ruleMap[entry.key]) {
+            .flatMap { (charPair, count) ->
+                when (val insertChar = ruleMap[charPair]) {
                     null -> listOf(
-                        Pair(entry.key, entry.value),
+                        Pair(charPair, count),
                     )
                     else -> listOf(
-                        Pair(entry.key.copy(right = insertChar), entry.value),
-                        Pair(entry.key.copy(left = insertChar), entry.value),
+                        Pair(charPair.copy(right = insertChar), count),
+                        Pair(charPair.copy(left = insertChar), count),
                     )
                 }
             }
@@ -37,13 +37,13 @@ fun main() {
             .map { (left, right) -> CharPair(left, right) }
             .groupingBy { it }
             .eachCount()
-            .mapValues { it.value.toLong() }
+            .mapValues { (_, count) -> count.toLong() }
         val finalMap = generateSequence(initialMap) { it.next(ruleMap) }
             .drop(steps)
             .first()
 
-        // remember that each element is double-counted, and to correct for slight under-counting
-        // at the start and end of the sequence.
+        // remember that each element is double-counted in a pair, and to correct for slight
+        // under-counting at the start and end of the sequence.
         val elementCounts = finalMap
             .flatMap { (charPair, count) -> listOf(Pair(charPair.left, count), Pair(charPair.right, count)) }
             .plus(listOf(Pair(initialString.first(), 1L), Pair(initialString.last(), 1L)))
