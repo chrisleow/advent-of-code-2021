@@ -42,7 +42,7 @@ fun main() {
             .drop(steps)
             .first()
 
-        // remember that each element is double-counted, remember to correct for slight under-counting
+        // remember that each element is double-counted, and to correct for slight under-counting
         // at the start and end of the sequence.
         val elementCounts = finalMap
             .flatMap { (charPair, count) -> listOf(Pair(charPair.left, count), Pair(charPair.right, count)) }

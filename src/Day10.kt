@@ -31,7 +31,7 @@ fun main() {
             .map { revLine -> revLine.fold(0L) { sc, c -> (sc * 5) + (charScores[c] ?: 0) } }
             .sorted()
             .toList()
-        return allScores.sorted()[allScores.size / 2]
+        return allScores[allScores.size / 2]
     }
 
     // test if implementation meets criteria from the description, like:

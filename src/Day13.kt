@@ -24,17 +24,18 @@ fun main() {
         }
     }
 
-    fun State.print() {
-        val maxX = this.points.maxOf { it.x }
-        val maxY = this.points.maxOf { it.y }
-        (0 .. maxY).forEach { y ->
-            (0 .. maxX).forEach { x ->
-                val point = Point(x, y)
-                print(if (point in this.points) "#" else ".")
+    fun State.toDisplayString(): String {
+        val points = this.points
+        val maxX = points.maxOf { it.x }
+        val maxY = points.maxOf { it.y }
+        return buildString {
+            (0..maxY).forEach { y ->
+                (0..maxX).forEach { x ->
+                    append(if (Point(x, y) in points) "\u2588" else " ")
+                }
+                append("\n")
             }
-            println()
         }
-        println()
     }
 
     fun State.next(): State? {
@@ -49,16 +50,8 @@ fun main() {
         )
     }
 
-    fun part1(input: List<String>): Int {
-        val initialState = parseState(input)
-        return initialState.next()?.points?.size ?: 0
-    }
-
-    fun part2(input: List<String>) {
-        val initialState = parseState(input)
-        val finalState = generateSequence(initialState) { it.next() }.last()
-        finalState.print()
-    }
+    fun part1(input: List<String>) = parseState(input).next()?.points?.size ?: 0
+    fun part2(input: List<String>) = generateSequence(parseState(input)) { it.next() }.last().toDisplayString()
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day13_test")
@@ -66,5 +59,5 @@ fun main() {
 
     val input = readInput("Day13")
     println("Part 1: ${part1(input)}")
-    part2(input)
+    println("Part 2:\n${part2(input)}")
 }
