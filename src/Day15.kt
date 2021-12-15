@@ -1,3 +1,5 @@
+import java.util.PriorityQueue
+
 fun main() {
 
     data class Point(val x: Int, val y: Int) {
@@ -39,33 +41,39 @@ fun main() {
     }
 
     // Note, I have to break my "functional-only" rule at this point, as performance is a real issue ...
-    // Using a bastardised version of Dijstra's algorithm
+    // Using an A* search algorithm
     fun getLowestCost(risks: Map<Point, Int>): Int {
         val maxX = risks.keys.maxOf { it.x }
         val maxY = risks.keys.maxOf { it.y }
 
-        // working variables
-        var edge = setOf(Point(0, 0))
-        val costs = mutableMapOf(Point(0, 0) to 0)
-        while (edge.isNotEmpty()) {
-            val nextEdgeCosts = edge
-                .asSequence()
-                .flatMap { point -> point.adjacent }
-                .filter { point -> point.x in (0 .. maxX) && point.y in (0 .. maxY) }
-                .distinct()
-                .map { point ->
-                    val risk = risks[point] ?: error("no risk for point")
-                    val cost = point.adjacent.minOf { (costs[it] ?: 1_000_000_000) + risk }
-                    (point to cost)
+        // A* queue indexed by (priority, cost, point)
+        val queue = PriorityQueue<Pair<Int, Point>>(compareBy { it.first })
+        val minCostsSoFar = mutableMapOf(Point(0, 0) to 0)
+        queue.add(Pair(0, Point(0, 0)))
+        while (queue.isNotEmpty()) {
+            val (_, point) = queue.remove()
+            if (point == Point(maxX, maxY)) {
+                break
+            }
+
+            // examine adjacent points as per A* / Dijkstra
+            val cost = minCostsSoFar[point] ?: continue
+            point.adjacent
+                .filter { it.x in (0 .. maxX) && it.y in (0 .. maxY) }
+                .forEach { adjacentPoint ->
+                    val risk = risks[adjacentPoint] ?: 1_000_000_000
+                    val potentialCost = (cost + risk)
+
+                    // we're better than the existing cost, add more "cascade" points to the queue
+                    if (potentialCost < (minCostsSoFar[adjacentPoint] ?: 1_000_000_000)) {
+                        val priority = potentialCost - (adjacentPoint.x + adjacentPoint.y)
+                        minCostsSoFar[adjacentPoint] = potentialCost
+                        queue.add(priority to adjacentPoint)
+                    }
                 }
-                .filter { (point, cost) -> cost < (costs[point] ?: 1_000_000_000) }
-                .toMap()
-            edge = nextEdgeCosts.keys
-            costs.putAll(nextEdgeCosts)
         }
 
-        // final point cost
-        return costs[Point(maxX, maxY)] ?: error("shouldn't get here")
+        return minCostsSoFar[Point(maxX, maxY)] ?: error("shouldn't get here")
     }
 
     fun part1(input: List<String>): Int {
