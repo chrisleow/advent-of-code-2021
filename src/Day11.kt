@@ -1,6 +1,19 @@
 fun main() {
 
-    data class Point(val x: Int, val y: Int)
+    data class Point(val x: Int, val y: Int) {
+        val adjacent by lazy {
+            listOf(
+                Point(x - 1, y - 1),
+                Point(x, y - 1),
+                Point(x + 1, y - 1),
+                Point(x - 1, y),
+                Point(x + 1, y),
+                Point(x - 1, y + 1),
+                Point(x, y + 1),
+                Point(x + 1, y + 1),
+            )
+        }
+    }
 
     fun parseInput(input: List<String>): Map<Point, Int> = buildMap {
         input.filter { it.isNotBlank() }.forEachIndexed { y, line ->
@@ -28,17 +41,6 @@ fun main() {
         println()
     }
 
-    fun Point.getAdjacent() = setOf(
-        Point(x - 1, y - 1),
-        Point(x, y - 1),
-        Point(x + 1, y - 1),
-        Point(x - 1, y),
-        Point(x + 1, y),
-        Point(x - 1, y + 1),
-        Point(x, y + 1),
-        Point(x + 1, y + 1),
-    )
-
     fun Map<Point, Int>.next(): Map<Point, Int> {
         tailrec fun cascadeFlashes(map: Map<Point, Int>): Map<Point, Int> {
             val flashPoints = map.filter { it.value > 9 }.keys
@@ -49,7 +51,7 @@ fun main() {
                         when {
                             energy == 0 -> 0
                             point in flashPoints -> 0
-                            else -> energy + (point.getAdjacent() intersect flashPoints).size
+                            else -> energy + (point.adjacent intersect flashPoints).size
                         }
                     }
                 )

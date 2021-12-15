@@ -64,18 +64,16 @@ fun main() {
     }
 
     fun part1(input: List<String>): Int {
-        val inputLines = parseInput(input)
         val lengths = digits
             .filter { it.value in listOf(1, 4, 7, 8) }
             .map { it.pattern.size }
-        return inputLines
+        return parseInput(input)
             .flatMap { it.outputPatterns }
             .count { it.length in lengths }
     }
 
     fun part2(input: List<String>): Int {
-        val inputLines = parseInput(input)
-        return inputLines.sumOf { decodeOutput(it) }
+        return parseInput(input).sumOf { decodeOutput(it) }
     }
 
     // test if implementation meets criteria from the description, like:

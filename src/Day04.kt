@@ -45,93 +45,80 @@ fun main() {
         val grids = groups
             .drop(1)
             .map { lines ->
-                Grid(
-                    numbers = buildMap {
-                        lines.forEachIndexed { y, line ->
-                            line.split(" ")
-                                .filter { it.isNotBlank() }
-                                .forEachIndexed { x, number ->
-                                    put(Point(x, y), number.toInt())
-                                }
-                        }
-                    },
-                    marks = emptySet(),
-                    bingo = null,
-                )
+                val gridNumbers = buildMap<Point, Int> {
+                    lines.forEachIndexed { y, line ->
+                        line.split(" ")
+                            .filter { it.isNotBlank() }
+                            .forEachIndexed { x, number -> put(Point(x, y), number.toInt()) }
+                    }
+                }
+                Grid(numbers = gridNumbers, marks = emptySet(), bingo = null)
             }
-
         return State(move = 0, remainingNumbers = numbers, grids = grids)
     }
 
     val winningPositions = run {
-        val positions = sequence {
-            (0 until 5).forEach { y ->
-                yield((0 until 5).map { x -> Point(x, y) }.toSet())
-            }
-            (0 until 5).forEach { x ->
-                yield((0 until 5).map { y -> Point(x, y) }.toSet())
-            }
-        }
-        positions.toList()
+        val positions = listOf(
+            (0 until 5).map { y -> (0 until 5).map { x -> Point(x, y) }.toSet() },
+            (0 until 5).map { x -> (0 until 5).map { y -> Point(x, y) }.toSet() },
+        )
+        positions.flatten()
     }
 
     fun State.next(): State? {
         val currentMove = this.move + 1
-        val currentNumber = this.remainingNumbers.firstOrNull()
-            ?: return null
+        val currentNumber = this.remainingNumbers.firstOrNull() ?: return null
 
         val newGrids = this.grids.map { grid ->
             val matchingPositions = grid.numbers
                 .filter { (_, number) -> number == currentNumber }
                 .map { (pos, _) -> pos }
-            val newMarks = grid.marks + matchingPositions
 
-            // assess for "bingo"
-            grid.copy(
-                marks = newMarks,
-                bingo = grid.bingo ?: run {
-                    if (winningPositions.any { newMarks.containsAll(it) }) {
-                        BingoRecord(currentMove, currentNumber)
-                    } else {
-                        null
-                    }
+            val newMarks = grid.marks + matchingPositions
+            val newBingo = grid.bingo ?: run {
+                if (winningPositions.any { newMarks.containsAll(it) }) {
+                    BingoRecord(currentMove, currentNumber)
+                } else {
+                    null
                 }
-            )
+            }
+
+            grid.copy(marks = newMarks, bingo = newBingo)
         }
 
-        return State(
-            move = currentMove,
-            remainingNumbers = this.remainingNumbers.drop(1),
-            grids = newGrids,
-        )
+        return State(move = currentMove, remainingNumbers = this.remainingNumbers.drop(1), grids = newGrids)
     }
 
     fun Grid.getScore(): Int {
-        if (this.bingo == null)
-            error("No bingo, no score :(")
-
-        val unmarkedSum = this.numbers
-            .filter { (pos, _) -> pos !in this.marks }
-            .map { (_, number) -> number }
-            .sum()
-        return unmarkedSum * this.bingo.number
+        return when (this.bingo) {
+            null -> error("No bingo, no score :(")
+            else -> {
+                val unmarkedSum = this.numbers
+                    .filter { (pos, _) -> pos !in this.marks }
+                    .map { (_, number) -> number }
+                    .sum()
+                unmarkedSum * this.bingo.number
+            }
+        }
     }
 
     fun part1(input: List<String>): Int {
         val initialState = parseInput(input)
         val states = generateSequence(initialState) { it.next() }
-        val winningState = states.first { state -> state.grids.any { it.bingo != null } }
-        val winningGrid = winningState.grids.first { it.bingo != null }
-        return winningGrid.getScore()
+        return states
+            .firstNotNullOf { state -> state.grids.firstOrNull { it.bingo != null } }
+            .getScore()
     }
 
     fun part2(input: List<String>): Int {
         val initialState = parseInput(input)
         val states = generateSequence(initialState) { it.next() }
-        val lastState = states.first { state -> state.grids.all { it.bingo != null } }
-        val losingGrid = lastState.grids.maxByOrNull { it.bingo?.move ?: 0 }
-            ?: error("Shouldn't have a null losing grid.")
-        return losingGrid.getScore()
+        return states
+            .first { state -> state.grids.all { it.bingo != null } }
+            .grids
+            .maxByOrNull { it.bingo?.move ?: 0 }
+            ?.getScore()
+            ?: error("should have a losing grid")
     }
 
     // test if implementation meets criteria from the description, like:

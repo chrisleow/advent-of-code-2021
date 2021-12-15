@@ -1,6 +1,15 @@
 fun main() {
 
-    data class Point(val x: Int, val y: Int)
+    data class Point(val x: Int, val y: Int) {
+        val adjacent by lazy {
+            listOf(
+                Point(x, y + 1),
+                Point(x, y - 1),
+                Point(x + 1, y),
+                Point(x - 1, y),
+            )
+        }
+    }
 
     fun parseInput(input: List<String>): Map<Point, Int> = buildMap {
         input.filter { it.isNotBlank() }.forEachIndexed { y, line ->
@@ -10,13 +19,6 @@ fun main() {
         }
     }
 
-    fun Point.getAdjacent() = listOf(
-        Point(x, y + 1),
-        Point(x, y - 1),
-        Point(x + 1, y),
-        Point(x - 1, y),
-    )
-
     fun getLowPoints(heightMap: Map<Point, Int>): List<Point> {
         val maxX = heightMap.keys.maxOf { it.x }
         val maxY = heightMap.keys.maxOf { it.y }
@@ -24,7 +26,7 @@ fun main() {
             (0 .. maxY).mapNotNull { y ->
                 val point = Point(x, y)
                 val height = heightMap[point] ?: 10
-                val adjacentHeights = point.getAdjacent().map { heightMap[it] ?: 10 }
+                val adjacentHeights = point.adjacent.map { heightMap[it] ?: 10 }
                 if (adjacentHeights.all { height < it }) point else null
             }
         }
@@ -33,7 +35,7 @@ fun main() {
     fun getBasins(heightMap: Map<Point, Int>): List<List<Point>> {
         tailrec fun expand(edge: Set<Point>, basin: Set<Point> = emptySet()): Set<Point> {
             val nextEdge = edge
-                .flatMap { it.getAdjacent() }
+                .flatMap { it.adjacent }
                 .filter { it !in basin && it !in edge && (heightMap[it] ?: 10) < 9 }
                 .toSet()
             return when {
@@ -41,7 +43,6 @@ fun main() {
                 else -> expand(nextEdge, basin + edge)
             }
         }
-
         return getLowPoints(heightMap).map { expand(setOf(it)).toList() }
     }
 

@@ -12,14 +12,12 @@ fun main() {
     fun countPaths(links: Map<String, List<String>>, smallCaveDoubleVisitAllowed: Boolean): Int {
         fun String.isSmall() = (this == this.lowercase())
         fun countPaths(current: String, visited: List<String>, doubleVisitAllowed: Boolean): Int {
+            val doubleVisitStillAllowed = doubleVisitAllowed && (!current.isSmall() || current !in visited)
             return when {
                 current.isSmall() && !doubleVisitAllowed && current in visited -> 0
                 current == "end" -> 1
-                else -> {
-                    val doubleVisitStillAllowed = doubleVisitAllowed && (!current.isSmall() || current !in visited)
-                    (links[current]?.asSequence() ?: emptySequence()).sumOf { node ->
-                        countPaths(node, visited + current, doubleVisitStillAllowed)
-                    }
+                else -> (links[current]?.asSequence() ?: emptySequence()).sumOf { node ->
+                    countPaths(node, visited + current, doubleVisitStillAllowed)
                 }
             }
         }
