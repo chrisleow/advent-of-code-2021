@@ -47,9 +47,11 @@ fun main() {
         val maxY = risks.keys.maxOf { it.y }
 
         // A* queue indexed by (priority, cost, point)
-        val queue = PriorityQueue<Pair<Int, Point>>(compareBy { it.first })
         val minCostsSoFar = mutableMapOf(Point(0, 0) to 0)
+        val queue = PriorityQueue<Pair<Int, Point>>(compareBy { it.first })
         queue.add(Pair(0, Point(0, 0)))
+
+        // continue until destination achieved
         while (queue.isNotEmpty()) {
             val (_, point) = queue.remove()
             if (point == Point(maxX, maxY)) {
@@ -57,14 +59,12 @@ fun main() {
             }
 
             // examine adjacent points as per A* / Dijkstra
-            val cost = minCostsSoFar[point] ?: continue
+            // note we use (-ManhattenDistance) as our distance heuristic
+            val pointCost = minCostsSoFar[point] ?: continue
             point.adjacent
                 .filter { it.x in (0 .. maxX) && it.y in (0 .. maxY) }
                 .forEach { adjacentPoint ->
-                    val risk = risks[adjacentPoint] ?: 1_000_000_000
-                    val potentialCost = (cost + risk)
-
-                    // we're better than the existing cost, add more "cascade" points to the queue
+                    val potentialCost = pointCost + (risks[adjacentPoint] ?: 1_000_000_000)
                     if (potentialCost < (minCostsSoFar[adjacentPoint] ?: 1_000_000_000)) {
                         val priority = potentialCost - (adjacentPoint.x + adjacentPoint.y)
                         minCostsSoFar[adjacentPoint] = potentialCost
@@ -76,15 +76,8 @@ fun main() {
         return minCostsSoFar[Point(maxX, maxY)] ?: error("shouldn't get here")
     }
 
-    fun part1(input: List<String>): Int {
-        val risks = parseInput(input)
-        return getLowestCost(risks)
-    }
-
-    fun part2(input: List<String>): Int {
-        val risks = expandMap(parseInput(input))
-        return getLowestCost(risks)
-    }
+    fun part1(input: List<String>): Int = getLowestCost(parseInput(input))
+    fun part2(input: List<String>): Int = getLowestCost(expandMap(parseInput(input)))
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day15_test")
