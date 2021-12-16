@@ -11,6 +11,7 @@ class AVLMap<K: Comparable<K>, V: Any> private constructor(private val tree: AVL
     operator fun plus(entry: Pair<K, V>) = AVLMap(tree.add(entry))
     operator fun plus(entry: Map.Entry<K, V>) = AVLMap(tree.add(Pair(entry.key, entry.value)))
     operator fun plus(map: Map<K, V>) = AVLMap(tree.addAll(map.map { Pair(it.key, it.value) }))
+    operator fun plus(entries: Iterable<Pair<K, V>>) = AVLMap(tree.addAll(entries))
     operator fun minus(key: K) = AVLMap(tree.remove(Pair(key, null)))
     operator fun minus(keys: Iterable<K>) = AVLMap(tree.removeAll(keys.map { Pair(it, null) }))
 

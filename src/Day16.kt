@@ -6,24 +6,30 @@ sealed class Packet {
 
 fun main() {
 
-    fun String.toBinary(): String = this
-        .replace("0", "0000")
-        .replace("1", "0001")
-        .replace("2", "0010")
-        .replace("3", "0011")
-        .replace("4", "0100")
-        .replace("5", "0101")
-        .replace("6", "0110")
-        .replace("7", "0111")
-        .replace("8", "1000")
-        .replace("9", "1001")
-        .replace("A", "1010")
-        .replace("B", "1011")
-        .replace("C", "1100")
-        .replace("D", "1101")
-        .replace("E", "1110")
-        .replace("F", "1111")
-
+    fun String.toBinary(): String {
+        return this.asIterable().joinToString("") { char -> 
+            when (char) {
+                '0' -> "0000"
+                '1' -> "0001"
+                '2' -> "0010"
+                '3' -> "0011"
+                '4' -> "0100"
+                '5' -> "0101"
+                '6' -> "0110"
+                '7' -> "0111"
+                '8' -> "1000"
+                '9' -> "1001"
+                'A' -> "1010"
+                'B' -> "1011"
+                'C' -> "1100"
+                'D' -> "1101"
+                'E' -> "1110"
+                'F' -> "1111"
+                else -> error("not a valid hex digit")
+            }
+        }
+    }
+    
     fun parseHexPacket(hexString: String): Packet {
         val binaryString = hexString.toBinary()
 

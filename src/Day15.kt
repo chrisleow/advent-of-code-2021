@@ -1,8 +1,9 @@
 import java.util.PriorityQueue
+import kotlin.system.measureTimeMillis
 
 fun main() {
 
-    data class Point(val x: Int, val y: Int) {
+    data class Point(val x: Int, val y: Int) : Comparable<Point> {
         val adjacent by lazy {
             listOf(
                 Point(x - 1, y),
@@ -10,6 +11,16 @@ fun main() {
                 Point(x + 1, y),
                 Point(x, y + 1),
             )
+        }
+
+        override fun compareTo(other: Point): Int {
+            return when {
+                this.x < other.x -> -1
+                this.x > other.x -> 1
+                this.y < other.y -> -1
+                this.y > other.y -> 1
+                else -> 0
+            }
         }
     }
 
@@ -40,13 +51,67 @@ fun main() {
         }
     }
 
-    // Note, I have to break my "functional-only" rule at this point, as performance is a real issue ...
-    // Using an A* search algorithm
+    fun Map<Point, Int>.printAsCostMap() {
+        val maxX = this.keys.maxOf { it.x }
+        val maxY = this.keys.maxOf { it.y }
+        (0 .. maxY).forEach { y ->
+            (0 .. maxX).forEach { x ->
+                print(this[Point(x, y)]?.toString()?.padStart(4, ' ') ?: "   ?")
+            }
+            println()
+        }
+        println()
+    }
+
+    // rewritten to use tail-recursion and purely functional data structures!  Performance is roughly
+    // equivalent ot a hashmap
     fun getLowestCost(risks: Map<Point, Int>): Int {
         val maxX = risks.keys.maxOf { it.x }
         val maxY = risks.keys.maxOf { it.y }
 
-        // A* queue indexed by (priority, cost, point)
+        // A* queue indexed by (priority, point)
+        tailrec fun search(queue: AVLPriorityQueue<Pair<Int, Point>>, costs: AVLMap<Point, Int>): Int {
+            val (pair, nextQueue) = queue.removeLeft()
+            val (_, point) = pair ?: error("not expecting an empty queue")
+
+            // termination condition (end of Dijkstra's algorithm)
+            val pointCost = costs[point] ?: error("expecting cost to be present for point")
+            if (point == Point(maxX, maxY)) {
+                return pointCost
+            }
+
+            // calculate updates
+            val updates = point.adjacent
+                .filter { it.x in (0 .. maxX) && it.y in (0 .. maxY) }
+                .mapNotNull { adjacentPoint ->
+                    val potentialCost = pointCost + (risks[adjacentPoint] ?: 1_000_000_000)
+                    if (potentialCost < (costs[adjacentPoint] ?: 1_000_000_000)) {
+                        val priority = potentialCost - (adjacentPoint.x + adjacentPoint.y)
+                        Triple(priority, adjacentPoint, potentialCost)
+                    } else {
+                        null
+                    }
+                }
+            return search(
+                queue = nextQueue.pushAll(updates.map { (priority, point, _) -> Pair(priority, point) }),
+                costs = costs + updates.map { (_, point, cost) -> Pair(point, cost) },
+            )
+        }
+
+        return search(
+            queue = AVLPriorityQueue<Pair<Int, Point>>(compareBy({ it.first }, { it.second }))
+                .push(0 to Point(0, 0)),
+            costs = AVLMap<Point, Int>().plus(Pair(Point(0, 0), 0))
+        )
+    }
+
+    // Note, I have to break my "functional-only" rule at this point, as performance is a real issue ...
+    // Using an A* search algorithm
+    fun getLowestCost_NonFunctional(risks: Map<Point, Int>): Int {
+        val maxX = risks.keys.maxOf { it.x }
+        val maxY = risks.keys.maxOf { it.y }
+
+        // A* queue indexed by (priority, point)
         val minCostsSoFar = mutableMapOf(Point(0, 0) to 0)
         val queue = PriorityQueue<Pair<Int, Point>>(compareBy { it.first })
         queue.add(Pair(0, Point(0, 0)))
@@ -76,15 +141,31 @@ fun main() {
         return minCostsSoFar[Point(maxX, maxY)] ?: error("shouldn't get here")
     }
 
-    fun part1(input: List<String>): Int = getLowestCost(parseInput(input))
-    fun part2(input: List<String>): Int = getLowestCost(expandMap(parseInput(input)))
+    fun part1(input: List<String>, useFunctional: Boolean): Int = when (useFunctional) {
+        true -> getLowestCost(parseInput(input))
+        false -> getLowestCost_NonFunctional(parseInput(input))
+    }
+
+    fun part2(input: List<String>, useFunctional: Boolean): Int = when (useFunctional) {
+        true -> getLowestCost(expandMap(parseInput(input)))
+        false -> getLowestCost_NonFunctional(expandMap(parseInput(input)))
+    }
 
     // test if implementation meets criteria from the description, like:
     val testInput = readInput("Day15_test")
-    check(part1(testInput) == 40)
-    check(part2(testInput) == 315)
+    check(part1(testInput, true) == 40)
+    check(part2(testInput, true) == 315)
 
     val input = readInput("Day15")
-    println("Part 1: ${part1(input)}")
-    println("Part 2: ${part2(input)}")
+    println("Part 1: ${part1(input, true)}")
+    println("Part 2: ${part2(input, true)}")
+
+    fun timeIt(iterations: Int, callable: () -> Unit): Long {
+        callable() // warm-up
+        val total = measureTimeMillis { repeat(iterations) { callable() } }
+        return total / iterations
+    }
+
+    println("Functional Time Taken (per iteration) for Part 2: ${timeIt(10) { part2(input, true) }}")
+    println("Non-Functional Time Taken (per iteration) for Part 2: ${timeIt(10) { part2(input, false) }}")
 }

@@ -7,8 +7,44 @@ fun main() {
         return input.flatMap { line -> regex.findAll(line).map { it.value.toInt()} }
     }
 
-    // let's go for maximum efficiency :)
+    /**
+     * Now using fully immutable, functional data structures!
+     *
+     * Note that this is longer than the non-functional version, and a bit more awkward too.  It would
+     * help if we had a memoization monad or similar, but it's still instructive to try without.
+     */
     fun getMinimumCost(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {
+
+        // ensure map is populated with calculated values we're about to use
+        fun AVLMap<Int, Int>.populate(vararg positions: Int): AVLMap<Int, Int> {
+            return positions.fold(this) { map, pos ->
+                if (map.containsKey(pos)) map else map + Pair(pos, calculateCost(pos))
+            }
+        }
+
+        tailrec fun findCost(left: Int, right: Int, costs: AVLMap<Int, Int>): Int = when {
+            right - left <= 1 -> {
+                val nextCosts = costs.populate(left, right)
+                fun cost(pos: Int) = nextCosts[pos] ?: error("shouldn't get here")
+                if (cost(left) <= cost(right)) cost(left) else cost(right)
+            }
+            else -> {
+                val middle = (left + right) / 2
+                val nextCosts = costs.populate(middle, middle + 1)
+                fun cost(pos: Int) = nextCosts[pos] ?: error("shouldn't get here")
+                when {
+                    cost(middle) < cost(middle + 1) -> findCost(left, middle, nextCosts)
+                    cost(middle) > cost(middle + 1) -> findCost(middle + 1, right, nextCosts)
+                    else -> error("I'm not built for this!")
+                }
+            }
+        }
+
+        return findCost(lower, upper, AVLMap())
+    }
+
+    // let's go for maximum efficiency :)
+    fun getMinimumCost_NonFunctional(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {
         val memoizedCosts = mutableMapOf<Int, Int>()
         fun cost(pos: Int) = memoizedCosts.getOrPut(pos) { calculateCost(pos) }
 
