@@ -28,28 +28,6 @@ fun main() {
 
     fun TargetArea.isHit(dx: Int, dy: Int) = this.simulate(dx, dy).any { it.hit }
 
-    // looking for any possible X that could hit ...
-    fun TargetArea.getPossibleHorizontalVelocities(): List<Int> {
-        val weakestX = (0 .. xRange.last).first { it * (it + 1) / 2 in xRange}
-        return (weakestX .. xRange.last).toList()
-    }
-
-    // look for any y that could possibly hit
-    // note, for any impact, there are two possible ways to get there, up and over
-    // or straight down
-    fun TargetArea.getPossibleVerticalVelocities(): List<Int> {
-        val floor = minOf(yRange.first, yRange.last)
-        return (0 downTo minOf(yRange.first, yRange.last))
-            .filter { initialDy ->
-                val velocityPositions = generateSequence(Pair(initialDy, 0)) { (dy, y) ->
-                    if (y < floor) null else Pair(dy - 1, y + dy)
-                }
-                velocityPositions.any { (_, y) -> y in yRange }
-            }
-            .flatMap { dy -> listOf(dy, 1 - dy) }
-            .distinct()
-    }
-
     // always assume we can pick an x to "come to rest" inside the target area
     // also, the projectile always passes "0" as it comes down, so we track up from the lowest
     // "y" point and get the triangle number to extrapolate highest "y".
@@ -59,11 +37,14 @@ fun main() {
         return largestYGap * (largestYGap - 1) / 2
     }
 
+    // consider all velocities in the box from (0, 0) to the far corner of the square, accepting
+    // upward looping trajectories
     fun part2(input: List<String>): Int {
         val targetArea = parseInput(input)
-        val allDx = targetArea.getPossibleHorizontalVelocities()
-        val allDy = targetArea.getPossibleVerticalVelocities()
-        return allDx.sumOf { dx -> allDy.count { dy -> targetArea.isHit(dx, dy) } }
+        val floor = minOf(targetArea.yRange.first, targetArea.yRange.last)
+        return (0 .. targetArea.xRange.last).sumOf { dx ->
+            (floor .. -floor).count { dy -> targetArea.isHit(dx, dy) }
+        }
     }
 
     // test
