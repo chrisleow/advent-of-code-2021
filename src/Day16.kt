@@ -30,7 +30,7 @@ fun main() {
         }
     }
     
-    fun parseHexPacket(hexString: String): Packet {
+    fun parse(hexString: String): Packet {
         val binaryString = hexString.toBinary()
 
         fun parse(index: Int): Pair<Int, Packet> {
@@ -62,7 +62,7 @@ fun main() {
                                 parseSubPackets(nextSubIndex, packets + packet)
                             }
                         }
-                        Pair(stopIndex, Packet.Operator(version, typeId, parseSubPackets(subIndex + 16, emptyList())))
+                        stopIndex to Packet.Operator(version, typeId, parseSubPackets(subIndex + 16, emptyList()))
                     }
                     '1' -> {
                         val count = binaryString.slice(subIndex + 1 until subIndex + 12).toInt(2)
@@ -71,7 +71,7 @@ fun main() {
                             val (nextInnerIndex, packet) = parse(innerIndex)
                             nextInnerIndex to (packets + packet)
                         }
-                        Pair(endIndex, Packet.Operator(version, typeId, packets))
+                        endIndex to Packet.Operator(version, typeId, packets)
                     }
                     else -> error("Unknown length type ID '$lengthTypeId'.")
                 }
@@ -104,20 +104,16 @@ fun main() {
     }
 
     fun part1(input: List<String>): Int {
-        fun flatten(packet: Packet): Sequence<Packet> = sequence {
-            yield(packet)
-            if (packet is Packet.Operator) {
-                yieldAll(packet.packets.flatMap { flatten(it) })
-            }
+        fun Packet.sumVersions(): Int = when (this) {
+            is Packet.Literal -> version
+            is Packet.Operator -> version + packets.sumOf { it.sumVersions() }
         }
-
-        val hexString = input.joinToString("").trim()
-        return flatten(parseHexPacket(hexString)).sumOf { it.version }
+        return parse(input.joinToString("").trim()).sumVersions()
     }
 
     fun part2(input: List<String>): Long {
         val hexString = input.joinToString("").trim()
-        return parseHexPacket(hexString).evaluate()
+        return parse(hexString).evaluate()
     }
 
     val input = readInput("Day16")

@@ -58,7 +58,7 @@ fun main() {
             }
         }
 
-        return cascadeFlashes(this.mapValues { it.value + 1 })
+        return cascadeFlashes( this.mapValues { it.value + 1 })
     }
 
     fun part1(input: List<String>): Int {

@@ -7,22 +7,28 @@ class AVLMap<K: Comparable<K>, V: Any> private constructor(private val tree: AVL
 
     private fun Sequence<Pair<K, V?>>.toMapEntries() = this.mapNotNull { (k, v) -> v?.let { AVLMapEntry(k, it) } }
 
-    // modification operations
-    operator fun plus(entry: Pair<K, V>) = AVLMap(tree.add(entry))
-    operator fun plus(entry: Map.Entry<K, V>) = AVLMap(tree.add(Pair(entry.key, entry.value)))
-    operator fun plus(map: Map<K, V>) = AVLMap(tree.addAll(map.map { Pair(it.key, it.value) }))
-    operator fun plus(entries: Iterable<Pair<K, V>>) = AVLMap(tree.addAll(entries))
-    operator fun minus(key: K) = AVLMap(tree.remove(Pair(key, null)))
-    operator fun minus(keys: Iterable<K>) = AVLMap(tree.removeAll(keys.map { Pair(it, null) }))
+    // basic accessors
+    override val size = tree.size
+    override operator fun get(key: K): V? = tree.find(Pair(key, null))?.second
+    override fun containsKey(key: K): Boolean = tree.contains(Pair(key, null))
+    override fun containsValue(value: V): Boolean = tree.scan().any { it.second == value }
+    override fun isEmpty(): Boolean = (tree.size == 0)
 
+    // modifiers
+    fun add(key: K, value: V) = AVLMap(tree.add(Pair(key, value)))
+    fun add(entry: Pair<K, V>) = AVLMap(tree.add(entry))
+    fun add(entry: Map.Entry<K, V>) = AVLMap(tree.add(Pair(entry.key, entry.value)))
+    fun add(map: Map<K, V>) = AVLMap(tree.addAll(map.map { Pair(it.key, it.value) }))
+    fun addAll(entries: Iterable<Pair<K, V>>) = AVLMap(tree.addAll(entries))
+    fun remove(key: K) = AVLMap(tree.remove(Pair(key, null)))
+    fun remove(keys: Iterable<K>) = AVLMap(tree.removeAll(keys.map { Pair(it, null) }))
+
+    // sequence scanners
     fun scan() = tree.scan().toMapEntries()
     fun scanFrom(from: K, inclusive: Boolean = true) = tree.scanFrom(Pair(from, null), inclusive).toMapEntries()
     fun scanReversed() = tree.scanReversed().toMapEntries()
     fun scanFromReversed(from: K, inclusive: Boolean = true) =
         tree.scanFromReversed(Pair(from, null), inclusive).toMapEntries()
-
-    override val size = tree.size
-    override operator fun get(key: K): V? = tree.find(Pair(key, null))?.second
 
     override val entries: Set<Map.Entry<K, V>> = object : Set<Map.Entry<K, V>> {
         override val size = tree.size
@@ -52,10 +58,6 @@ class AVLMap<K: Comparable<K>, V: Any> private constructor(private val tree: AVL
         override fun iterator() = tree.scan().mapNotNull { it.second }.iterator()
     }
 
-    override fun containsKey(key: K): Boolean = tree.contains(Pair(key, null))
-    override fun containsValue(value: V): Boolean = tree.scan().any { it.second == value }
-    override fun isEmpty(): Boolean = (tree.size == 0)
-
     companion object {
         operator fun <K: Comparable<K>, V: Any> invoke() = AVLMap(AVLTree<Pair<K, V?>>(compareBy { it.first }))
     }
@@ -63,6 +65,6 @@ class AVLMap<K: Comparable<K>, V: Any> private constructor(private val tree: AVL
 
 fun main() {
     val map = AVLMap<Int, String>()
-    val endMap = map.plus(Pair(1, "Howdy!")).plus(Pair(3, "Cromity")).plus(Pair(2, "Bingo!"))
+    val endMap = map.add(1, "Howdy!").add(3, "Cromity").add(2, "Bingo!")
     println(endMap.scan().toList())
 }

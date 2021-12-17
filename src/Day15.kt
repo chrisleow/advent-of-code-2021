@@ -63,15 +63,15 @@ fun main() {
         println()
     }
 
-    // rewritten to use tail-recursion and purely functional data structures!  Performance is roughly
-    // equivalent ot a hashmap
+    // rewritten to use tail-recursion and purely functional data structures!  Performance, surprisingly, is not
+    // far off a hashmap
     fun getLowestCost(risks: Map<Point, Int>): Int {
         val maxX = risks.keys.maxOf { it.x }
         val maxY = risks.keys.maxOf { it.y }
 
         // A* queue indexed by (priority, point)
         tailrec fun search(queue: AVLPriorityQueue<Pair<Int, Point>>, costs: AVLMap<Point, Int>): Int {
-            val (pair, nextQueue) = queue.removeLeft()
+            val (pair, tailQueue) = queue.removeLeft()
             val (_, point) = pair ?: error("not expecting an empty queue")
 
             // termination condition (end of Dijkstra's algorithm)
@@ -93,21 +93,21 @@ fun main() {
                     }
                 }
             return search(
-                queue = nextQueue.pushAll(updates.map { (priority, point, _) -> Pair(priority, point) }),
-                costs = costs + updates.map { (_, point, cost) -> Pair(point, cost) },
+                costs = costs.addAll(updates.map { (_, point, cost) -> Pair(point, cost) }),
+                queue = tailQueue.pushAll(updates.map { (priority, point, _) -> Pair(priority, point) }),
             )
         }
 
         return search(
+            costs = AVLMap<Point, Int>().add(Point(0, 0) to 0),
             queue = AVLPriorityQueue<Pair<Int, Point>>(compareBy({ it.first }, { it.second }))
                 .push(0 to Point(0, 0)),
-            costs = AVLMap<Point, Int>().plus(Pair(Point(0, 0), 0))
         )
     }
 
     // Note, I have to break my "functional-only" rule at this point, as performance is a real issue ...
     // Using an A* search algorithm
-    fun getLowestCost_NonFunctional(risks: Map<Point, Int>): Int {
+    fun getLowestCostNonFunctional(risks: Map<Point, Int>): Int {
         val maxX = risks.keys.maxOf { it.x }
         val maxY = risks.keys.maxOf { it.y }
 
@@ -143,12 +143,12 @@ fun main() {
 
     fun part1(input: List<String>, useFunctional: Boolean): Int = when (useFunctional) {
         true -> getLowestCost(parseInput(input))
-        false -> getLowestCost_NonFunctional(parseInput(input))
+        false -> getLowestCostNonFunctional(parseInput(input))
     }
 
     fun part2(input: List<String>, useFunctional: Boolean): Int = when (useFunctional) {
         true -> getLowestCost(expandMap(parseInput(input)))
-        false -> getLowestCost_NonFunctional(expandMap(parseInput(input)))
+        false -> getLowestCostNonFunctional(expandMap(parseInput(input)))
     }
 
     // test if implementation meets criteria from the description, like:
@@ -166,6 +166,9 @@ fun main() {
         return total / iterations
     }
 
-    println("Functional Time Taken (per iteration) for Part 2: ${timeIt(10) { part2(input, true) }}")
-    println("Non-Functional Time Taken (per iteration) for Part 2: ${timeIt(10) { part2(input, false) }}")
+    val functionalMs = timeIt(10) { part2(input, true) }
+    println("Functional Time Taken (per iteration) for Part 2: ${functionalMs}ms")
+    val nonFunctionalMs = timeIt(10) { part2(input, false) }
+    println("Non-Functional Time Taken (per iteration) for Part 2: ${nonFunctionalMs}ms")
+    println("  Functional is ${(functionalMs - nonFunctionalMs) * 100 / functionalMs}% slower.")
 }

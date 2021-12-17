@@ -1,6 +1,12 @@
 fun main() {
 
-    data class Point(val x: Int, val y: Int) {
+    data class Point(val x: Int, val y: Int) : Comparable<Point> {
+        override fun compareTo(other: Point): Int =
+            when (val xCompare = this.x.compareTo(other.x)) {
+                0 -> this.y.compareTo(other.y)
+                else -> xCompare
+            }
+
         val adjacent by lazy {
             listOf(
                 Point(x, y + 1),
@@ -33,17 +39,17 @@ fun main() {
     }
 
     fun getBasins(heightMap: Map<Point, Int>): List<List<Point>> {
-        tailrec fun expand(edge: Set<Point>, basin: Set<Point> = emptySet()): Set<Point> {
+        tailrec fun expand(edge: AVLSet<Point>, basin: AVLSet<Point> = AVLSet()): Set<Point> {
             val nextEdge = edge
                 .flatMap { it.adjacent }
                 .filter { it !in basin && it !in edge && (heightMap[it] ?: 10) < 9 }
-                .toSet()
+                .toAVLSet()
             return when {
-                nextEdge.isEmpty() -> basin + edge
-                else -> expand(nextEdge, basin + edge)
+                nextEdge.isEmpty() -> basin.addAll(edge)
+                else -> expand(nextEdge, basin.addAll(edge))
             }
         }
-        return getLowPoints(heightMap).map { expand(setOf(it)).toList() }
+        return getLowPoints(heightMap).map { expand(AVLSet<Point>().add(it)).toList() }
     }
 
     fun part1(input: List<String>): Int {

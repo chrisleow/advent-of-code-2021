@@ -15,18 +15,19 @@ class AVLSet<T: Comparable<T>> private constructor(private val tree: AVLTree<T>)
     fun scanFromReversed(from: T, inclusive: Boolean = true) = tree.scanFromReversed(from, inclusive)
 
     // modifiers
-    operator fun plus(element: T) = AVLSet(tree.add(element))
-    operator fun plus(elements: Iterable<T>) = AVLSet(tree.addAll(elements))
-    operator fun minus(element: T) = AVLSet(tree.remove(element))
-    operator fun minus(elements: Iterable<T>) = AVLSet(tree.removeAll(elements))
+    fun add(element: T) = AVLSet(tree.add(element))
+    fun addAll(elements: Iterable<T>) = AVLSet(tree.addAll(elements))
+    fun remove(element: T) = AVLSet(tree.remove(element))
+    fun removeAll(elements: Iterable<T>) = AVLSet(tree.removeAll(elements))
 
     companion object {
-        operator fun <T: Comparable<T>> invoke(elements: Iterable<T>) =
-            AVLSet(AVLTree<T>(compareBy { it }).addAll(elements))
+        operator fun <T: Comparable<T>> invoke() = AVLSet(AVLTree<T>(compareBy { it }))
     }
 }
 
+fun <T: Comparable<T>> Iterable<T>.toAVLSet() = AVLSet<T>().addAll(this)
+
 fun main() {
-    val endSet = AVLSet(listOf(1, 7, 5, 4, 3, 2, 1)) + 8 + -1
+    val endSet = listOf(1, 7, 5, 4, 3, 2, 1).toAVLSet().add(8).add(1).add(-1)
     println(endSet.scan().toList())
 }

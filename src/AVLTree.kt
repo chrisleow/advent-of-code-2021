@@ -20,7 +20,7 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         val size: Int = (left?.size ?: 0) + (right?.size ?: 0) + 1
     }
 
-    private fun Node<T>.rotatedLeft(): Node<T> {
+    private fun Node<T>.rotateLeft(): Node<T> {
         val oldMiddle = this
         val oldRight = this.right ?: error("expected a right node")
         return Node(
@@ -30,7 +30,7 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         )
     }
 
-    private fun Node<T>.rotatedRight(): Node<T> {
+    private fun Node<T>.rotateRight(): Node<T> {
         val oldMiddle = this
         val oldLeft = this.left ?: error("expected a left node")
         return Node(
@@ -40,7 +40,7 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         )
     }
 
-    private fun Node<T>.rotatedLeftRight(): Node<T> {
+    private fun Node<T>.rotateLeftRight(): Node<T> {
         val oldMiddle = this
         val oldLeft = this.left ?: error("expected a left node")
         val oldLeftRight = this.left.right ?: error("expected a left / right node")
@@ -51,7 +51,7 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         )
     }
 
-    private fun Node<T>.rotatedRightLeft(): Node<T> {
+    private fun Node<T>.rotateRightLeft(): Node<T> {
         val oldMiddle = this
         val oldRight = this.right ?: error("expected a right node")
         val oldRightLeft = this.right.left ?: error("expected a right / left node")
@@ -67,16 +67,16 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         return when (this.balanceFactor()) {
             in (2 .. Int.MAX_VALUE) -> {
                 if ((left?.balanceFactor() ?: 0) < 0) {
-                    this.rotatedLeftRight().rebalance()
+                    this.rotateLeftRight().rebalance()
                 } else {
-                    this.rotatedRight().rebalance()
+                    this.rotateRight().rebalance()
                 }
             }
             in (Int.MIN_VALUE .. -2) -> {
                 if ((right?.balanceFactor() ?: 0) > 0) {
-                    this.rotatedRightLeft().rebalance()
+                    this.rotateRightLeft().rebalance()
                 } else {
-                    this.rotatedLeft().rebalance()
+                    this.rotateLeft().rebalance()
                 }
             }
             else -> this
@@ -87,18 +87,8 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         return when (this) {
             null -> Node(item, null, null)
             else -> when (comparator.compare(item, this.item)) {
-                -1 -> {
-                    when (val left = this.left) {
-                        null -> this.copy(left = Node(item, left = null, right = null)).rebalance()
-                        else -> this.copy(left = left.add(item)).rebalance()
-                    }
-                }
-                1 -> {
-                    when (val right = this.right) {
-                        null -> this.copy(right = Node(item, left = null, right = null)).rebalance()
-                        else -> this.copy(right = right.add(item)).rebalance()
-                    }
-                }
+                -1 -> this.copy(left = left.add(item)).rebalance()
+                1 -> this.copy(right = right.add(item)).rebalance()
                 else -> this.copy(item = item)
             }
         }
@@ -109,7 +99,7 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
             return when (this.left) {
                 null -> Pair(this.item, this.right)
                 else -> {
-                    val (leftmost, newLeft) = this.left.detachLeftmost()
+                    val (leftmost, newLeft) = left.detachLeftmost()
                     return Pair(leftmost, this.copy(left = newLeft).rebalance())
                 }
             }
@@ -117,8 +107,8 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         return when (this) {
             null -> null
             else -> when (comparator.compare(item, this.item)) {
-                -1 -> this.copy(left = this.left.remove(item)).rebalance()
-                1 -> this.copy(right = this.right.remove(item)).rebalance()
+                -1 -> copy(left = left.remove(item)).rebalance()
+                1 -> copy(right = right.remove(item)).rebalance()
                 else -> when {
                     this.left == null && this.right == null -> null
                     this.left == null -> this.right
@@ -199,27 +189,27 @@ class AVLTree<T: Any> private constructor (private val root: Node<T>?, private v
         }
     }
 
+    // simple accessors
     val size: Int = root?.size ?: 0
     operator fun contains(item: T) = root.contains(item)
     fun find(item: T) = root.find(item)
 
+    // sequence scanners
     fun scan(): Sequence<T> = root.select(null, null, false)
     fun scanFrom(from: T, inclusive: Boolean = true) = root.select(Limit(from, inclusive), null, false)
     fun scanReversed() = root.select(null, null, true)
     fun scanFromReversed(from: T, inclusive: Boolean = true) = root.select(null, Limit(from, inclusive), true)
 
+    // modifiers
     fun add(item: T): AVLTree<T> {
         return AVLTree(root.add(item), comparator)
     }
-
     fun addAll(items: Iterable<T>): AVLTree<T> {
         return AVLTree(items.fold(root) { node, item -> node.add(item) }, comparator)
     }
-
     fun remove(item: T): AVLTree<T> {
         return AVLTree(root.remove(item), comparator)
     }
-
     fun removeAll(items: Iterable<T>): AVLTree<T> {
         return AVLTree(items.fold(root) { node, item -> node.remove(item) }, comparator)
     }

@@ -1,4 +1,5 @@
 import kotlin.math.abs
+import kotlin.math.min
 
 fun main() {
 
@@ -15,26 +16,24 @@ fun main() {
      */
     fun getMinimumCost(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {
 
-        // ensure map is populated with calculated values we're about to use
-        fun AVLMap<Int, Int>.populate(vararg positions: Int): AVLMap<Int, Int> {
-            return positions.fold(this) { map, pos ->
-                if (map.containsKey(pos)) map else map + Pair(pos, calculateCost(pos))
-            }
+        // ensure map is populated with calculated values we're about to use, ignoring stuff we already have
+        fun AVLMap<Int, Int>.costAndModify(pos: Int): Pair<Int, AVLMap<Int, Int>> {
+            return this[pos]?.let { it to this } ?: calculateCost(pos).let { it to this.add(pos, it) }
         }
 
         tailrec fun findCost(left: Int, right: Int, costs: AVLMap<Int, Int>): Int = when {
             right - left <= 1 -> {
-                val nextCosts = costs.populate(left, right)
-                fun cost(pos: Int) = nextCosts[pos] ?: error("shouldn't get here")
-                if (cost(left) <= cost(right)) cost(left) else cost(right)
+                val (leftCost, costsPlus1) = costs.costAndModify(left)
+                val (rightCost, _) = costsPlus1.costAndModify(right)
+                min(leftCost, rightCost)
             }
             else -> {
                 val middle = (left + right) / 2
-                val nextCosts = costs.populate(middle, middle + 1)
-                fun cost(pos: Int) = nextCosts[pos] ?: error("shouldn't get here")
+                val (leftMiddleCost, costsPlus1) = costs.costAndModify(middle)
+                val (rightMiddleCost, costsPlus2) = costsPlus1.costAndModify(middle + 1)
                 when {
-                    cost(middle) < cost(middle + 1) -> findCost(left, middle, nextCosts)
-                    cost(middle) > cost(middle + 1) -> findCost(middle + 1, right, nextCosts)
+                    leftMiddleCost < rightMiddleCost -> findCost(left, middle, costsPlus2)
+                    leftMiddleCost > rightMiddleCost -> findCost(middle + 1, right, costsPlus2)
                     else -> error("I'm not built for this!")
                 }
             }
