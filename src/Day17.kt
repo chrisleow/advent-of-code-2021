@@ -43,7 +43,7 @@ fun main() {
         val targetArea = parseInput(input)
         val floor = minOf(targetArea.yRange.first, targetArea.yRange.last)
         return (0 .. targetArea.xRange.last).sumOf { dx ->
-            (floor .. -floor).count { dy -> targetArea.isHit(dx, dy) }
+            (floor .. -floor + 1).count { dy -> targetArea.isHit(dx, dy) }
         }
     }
 
