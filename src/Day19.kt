@@ -5,15 +5,15 @@ fun main() {
     data class Vector(val x: Int, val y: Int, val z: Int) {
         operator fun plus(other: Vector) = Vector(x + other.x, y + other.y, z + other.z)
         operator fun minus(other: Vector) = Vector(x - other.x, y - other.y, z - other.z)
+        val norm = abs(x) + abs(y) + abs(z)
     }
 
     data class OrientedScan(
+        val id: Int,
         val beacons: Set<Vector>,
-        val translationNorms: Set<Int>,
-        val absolutePosition: Vector,
+        val mutualDistances: Set<Int>,
+        val position: Vector,
     )
-
-    fun Vector.norm() = abs(x) + abs(y) + abs(z)
 
     fun <T> Iterable<T>.split(delimiter: (T) -> Boolean): Iterable<Iterable<T>> = this
         .fold(listOf(emptyList<T>())) { acc, item ->
@@ -28,15 +28,20 @@ fun main() {
         val regex = "(-?\\d+),(-?\\d+),(-?\\d+)".toRegex()
         return input
             .split { it.isBlank() }
-            .map { lines ->
+            .mapIndexed { index, lines ->
                 val beacons = lines
                     .mapNotNull { regex.matchEntire(it)?.groupValues }
                     .map { gv -> Vector(gv[1].toInt(), gv[2].toInt(), gv[3].toInt()) }
+
+                // some fields here will be useful later, specifically position and translations norms, where
+                // position will be modified as we translate points, and mutual distances allows easy filtering
+                // between scanners
                 OrientedScan(
+                    id = index,
                     beacons = beacons.toSet(),
-                    absolutePosition = Vector(0, 0, 0),
-                    translationNorms = beacons
-                        .flatMap { b1 -> beacons.map { b2 -> (b1 - b2).norm() } }
+                    position = Vector(0, 0, 0),
+                    mutualDistances = beacons
+                        .flatMap { b1 -> beacons.map { b2 -> (b1 - b2).norm } }
                         .filter { it > 0 }
                         .toSet(),
                 )
@@ -63,66 +68,56 @@ fun main() {
         }
     }
 
-    operator fun OrientedScan.plus(other: Vector) = OrientedScan(
-        beacons = beacons.map { it + other }.toSet(),
-        translationNorms = translationNorms,
-        absolutePosition = absolutePosition + other,
+    fun OrientedScan.transform(transform: (Vector) -> Vector) = copy(
+        beacons = beacons.map { transform(it) }.toSet(),
+        position = transform(position),
     )
 
-    fun OrientedScan.getAllOrientations(): Sequence<OrientedScan> = sequence {
-        orientationTransformers.forEach { transform ->
-            yield(
-                OrientedScan(
-                    beacons = beacons.map { transform(it) }.toSet(),
-                    translationNorms = translationNorms,
-                    absolutePosition = transform(absolutePosition),
-                )
-            )
-        }
-    }
+    operator fun OrientedScan.plus(other: Vector) = this.transform { it + other }
+
+    fun OrientedScan.allOrientations() = orientationTransformers
+        .asSequence()
+        .map { transformer -> this.transform(transformer) }
 
     fun List<OrientedScan>.orientAll(): List<OrientedScan> {
-        tailrec fun orientStep(remaining: List<OrientedScan>, known: List<OrientedScan>): List<OrientedScan> {
-            if (remaining.isEmpty()) return known
+        tailrec fun orientStep(scans: List<OrientedScan>, knownScans: List<OrientedScan>): List<OrientedScan> {
+            if (scans.isEmpty()) return knownScans
 
-            // look for first matching scan
-            val (index, replacement) = remaining.indices.firstNotNullOf { index ->
-                val scan = remaining[index]
-                known.firstNotNullOfOrNull { knownScan ->
-                    val intersectingNorms = knownScan.translationNorms intersect scan.translationNorms
-                    if (intersectingNorms.size < 66) {
+            // first-pass filter, we know that if at least 66 == 12 * (12 - 1) / 2 of the norms don't match in
+            // length, we shouldn't investigate further...  much more efficent than examining all orientations
+            // up-front!
+            val matchingScanPairsFirstPass = knownScans
+                .asSequence()
+                .flatMap { knownScan -> scans.map { Pair(knownScan, it) } }
+                .filter { (knownScan, scan) -> (knownScan.mutualDistances intersect scan.mutualDistances).size >= 66 }
 
-                        // expecting min. 66 translations where the norm value is the same, irrespective of orientation
+            // now have to work harder, examine mutual distances for all points in all orientations
+            // we do this by counting translation vectors between existing and known scans, expecting the minimum
+            // number (12) which proves that there are 12 beacons in common
+            val newOrientedScan = matchingScanPairsFirstPass
+                .flatMap { (knownScan, scan) -> scan.allOrientations().map { Pair(knownScan,it) } }
+                .firstNotNullOf { (knownScan, orientedScan) ->
+                    val translationVectorCounts = knownScan.beacons
+                        .flatMap { knownBeacon -> orientedScan.beacons.map { beacon -> knownBeacon - beacon } }
+                        .groupingBy { it }
+                        .eachCount()
+                    val (mostCommonTranslationVector, maxCount) = translationVectorCounts
+                        .maxByOrNull { (_, count) -> count }
+                        ?: error("expecting at least one translation vector")
+
+                    // expecting 12 beacons minimum to match, ensure we translate as well as orient result
+                    if (maxCount < 12) {
                         null
                     } else {
-
-                        // now have to work harder, examine mutual distances for all points in various orientations
-                        scan.getAllOrientations().firstNotNullOfOrNull { orientedScan ->
-                            val translationVectorCounts = orientedScan.beacons
-                                .flatMap { orientedBeacon ->
-                                    knownScan.beacons.map { knownBeacon -> knownBeacon - orientedBeacon }
-                                }
-                                .groupingBy { it }
-                                .eachCount()
-                            val (bestTranslationVector, count) = translationVectorCounts
-                                .maxByOrNull { (_, count) -> count }
-                                ?: error("expecting at least one translation vector")
-
-                            // expecting 12 beacons minimum to match
-                            if (count < 12) null else Pair(index, orientedScan + bestTranslationVector)
-                        }
+                        orientedScan + mostCommonTranslationVector
                     }
                 }
-            }
 
-            // recursively examine
-            return orientStep(
-                remaining = remaining.withIndex().mapNotNull { (idx, scan) -> if (idx == index) null else scan },
-                known = known + replacement,
-            )
+            // move scan to "known", so we may try again
+            return orientStep(scans.filter { it.id != newOrientedScan.id }, knownScans + newOrientedScan)
         }
 
-        // start search from the beginning
+        // start search assuming scanner 0 is the correct orientation and at absolute 0 position
         return orientStep(this.drop(1), listOf(this.first()))
     }
 
@@ -134,7 +129,7 @@ fun main() {
     fun part2(input: List<String>): Int {
         val orientedScans = parseInput(input).orientAll()
         return orientedScans
-            .flatMap { s1 -> orientedScans.map { s2 -> (s1.absolutePosition - s2.absolutePosition).norm() } }
+            .flatMap { s1 -> orientedScans.map { s2 -> (s1.position - s2.position).norm } }
             .maxOrNull()
             ?: error("no scans to orient")
     }
