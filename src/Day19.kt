@@ -1,3 +1,5 @@
+import kotlin.math.abs
+
 fun main() {
 
     data class Vector(val x: Int, val y: Int, val z: Int) {
@@ -5,8 +7,13 @@ fun main() {
         operator fun minus(other: Vector) = Vector(x - other.x, y - other.y, z - other.z)
     }
 
-    data class VectorAlignment(val points: Set<Vector>, val displacement: Vector, val commonSize: Int)
-    data class ScannerMap(val beacons: List<Vector>, val scannerDisplacements: List<Vector>)
+    data class OrientedScan(
+        val beacons: Set<Vector>,
+        val translationNorms: Set<Int>,
+        val absolutePosition: Vector,
+    )
+
+    fun Vector.norm() = abs(x) + abs(y) + abs(z)
 
     fun <T> Iterable<T>.split(delimiter: (T) -> Boolean): Iterable<Iterable<T>> = this
         .fold(listOf(emptyList<T>())) { acc, item ->
@@ -17,100 +24,119 @@ fun main() {
         }
         .filter { it.isNotEmpty() }
 
-    fun parseInput(input: List<String>): List<List<Vector>> {
+    fun parseInput(input: List<String>): List<OrientedScan> {
         val regex = "(-?\\d+),(-?\\d+),(-?\\d+)".toRegex()
         return input
             .split { it.isBlank() }
             .map { lines ->
-                lines
+                val beacons = lines
                     .mapNotNull { regex.matchEntire(it)?.groupValues }
                     .map { gv -> Vector(gv[1].toInt(), gv[2].toInt(), gv[3].toInt()) }
-            }
-    }
-
-    fun List<Vector>.allOrientations(): List<List<Vector>> {
-        val vectorOrientations = this.map { (x, y, z) ->
-            val permutations = listOf(
-                Vector(x, y, z),
-                Vector(x, z, -y),
-                Vector(y, x, -z),
-                Vector(y, z, x),
-                Vector(z, x, y),
-                Vector(z, y, -x),
-            )
-            permutations.flatMap { (x, y, z) ->
-                listOf(
-                    Vector(x, y, z),
-                    Vector(-x, -y, z),
-                    Vector(x, -y, -z),
-                    Vector(-x, y, -z),
+                OrientedScan(
+                    beacons = beacons.toSet(),
+                    absolutePosition = Vector(0, 0, 0),
+                    translationNorms = beacons
+                        .flatMap { b1 -> beacons.map { b2 -> (b1 - b2).norm() } }
+                        .filter { it > 0 }
+                        .toSet(),
                 )
             }
+    }
+
+    // careful to avoid flips (can't be arsed to do it properly with matrices)
+    val orientationTransformers = run {
+        val permutations = listOf<(Vector) -> Vector>(
+            { (x, y, z) -> Vector(x, y, z) },
+            { (x, y, z) -> Vector(x, z, -y) },
+            { (x, y, z) -> Vector(y, x, -z) },
+            { (x, y, z) -> Vector(y, z, x) },
+            { (x, y, z) -> Vector(z, x, y) },
+            { (x, y, z) -> Vector(z, y, -x) },
+        )
+        permutations.flatMap { transform ->
+            listOf<(Vector) -> Vector>(
+                { v -> transform(v).let { (x, y, z) -> Vector(x, y, z) } },
+                { v -> transform(v).let { (x, y, z) -> Vector(-x, -y, z) } },
+                { v -> transform(v).let { (x, y, z) -> Vector(x, -y, -z) } },
+                { v -> transform(v).let { (x, y, z) -> Vector(-x, y, -z) } },
+            )
         }
-        return (0 until vectorOrientations.maxOf { it.size })
-            .map { index -> vectorOrientations.map { it[index] } }
     }
 
-    // try to align every point
-    fun List<Vector>.bestAlignmentWith(other: Set<Vector>): VectorAlignment {
-        val otherSet = other.toSet()
-        return other
-            .flatMap { targetPoint ->
-                this.map { point ->
-                    val displaced = this.map { it + targetPoint - point }.toSet()
-                    VectorAlignment(displaced, targetPoint - point, (displaced intersect otherSet).size)
-                }
-            }
-            .maxByOrNull { it.commonSize }
-            ?: error("no empty lists please!")
+    operator fun OrientedScan.plus(other: Vector) = OrientedScan(
+        beacons = beacons.map { it + other }.toSet(),
+        translationNorms = translationNorms,
+        absolutePosition = absolutePosition + other,
+    )
+
+    fun OrientedScan.getAllOrientations(): Sequence<OrientedScan> = sequence {
+        orientationTransformers.forEach { transform ->
+            yield(
+                OrientedScan(
+                    beacons = beacons.map { transform(it) }.toSet(),
+                    translationNorms = translationNorms,
+                    absolutePosition = transform(absolutePosition),
+                )
+            )
+        }
     }
 
-    fun List<List<Vector>>.getCompleteMap(): ScannerMap {
+    fun List<OrientedScan>.orientAll(): List<OrientedScan> {
+        tailrec fun orientStep(remaining: List<OrientedScan>, known: List<OrientedScan>): List<OrientedScan> {
+            if (remaining.isEmpty()) return known
 
-        // given a partial map and displacement, build the full map
-        fun buildMap(remainingScans: List<List<Vector>>, alignments: List<VectorAlignment>): List<VectorAlignment> {
-            if (remainingScans.isEmpty()) {
-                return alignments
-            }
+            // look for first matching scan
+            val (index, replacement) = remaining.indices.firstNotNullOf { index ->
+                val scan = remaining[index]
+                known.firstNotNullOfOrNull { knownScan ->
+                    val intersectingNorms = knownScan.translationNorms intersect scan.translationNorms
+                    if (intersectingNorms.size < 66) {
 
-            println("Remaining Scans: ${remainingScans.size}")
-            val (winningIndex, alignment) = remainingScans.indices.firstNotNullOf { index ->
-                val scan = remainingScans[index]
-                scan.allOrientations()
-                    .firstNotNullOfOrNull { orientedScan ->
-                        alignments.firstNotNullOfOrNull { existingAlignment ->
-                            val scanAlignment = orientedScan.bestAlignmentWith(existingAlignment.points)
-                            when (scanAlignment.commonSize >= 12) {
-                                true -> Pair(index, scanAlignment)
-                                false -> null
-                            }
+                        // expecting min. 66 translations where the norm value is the same, irrespective of orientation
+                        null
+                    } else {
+
+                        // now have to work harder, examine mutual distances for all points in various orientations
+                        scan.getAllOrientations().firstNotNullOfOrNull { orientedScan ->
+                            val translationVectorCounts = orientedScan.beacons
+                                .flatMap { orientedBeacon ->
+                                    knownScan.beacons.map { knownBeacon -> knownBeacon - orientedBeacon }
+                                }
+                                .groupingBy { it }
+                                .eachCount()
+                            val (bestTranslationVector, count) = translationVectorCounts
+                                .maxByOrNull { (_, count) -> count }
+                                ?: error("expecting at least one translation vector")
+
+                            // expecting 12 beacons minimum to match
+                            if (count < 12) null else Pair(index, orientedScan + bestTranslationVector)
                         }
                     }
+                }
             }
 
-            val newRemainingScans = remainingScans
-                .withIndex()
-                .filter { (index, _) -> index != winningIndex }
-                .map { (_, scan) -> scan }
-            return buildMap(newRemainingScans, alignments + alignment)
+            // recursively examine
+            return orientStep(
+                remaining = remaining.withIndex().mapNotNull { (idx, scan) -> if (idx == index) null else scan },
+                known = known + replacement,
+            )
         }
 
-        // start with scanner 0 as the "gold standard"
-        val initialAlignment = VectorAlignment(this.first().toSet(), Vector(0, 0, 0), -1)
-        val alignments = buildMap(this.drop(1), listOf(initialAlignment))
-        return ScannerMap(alignments.flatMap { it.points }.distinct(), alignments.map { it.displacement })
+        // start search from the beginning
+        return orientStep(this.drop(1), listOf(this.first()))
     }
 
     fun part1(input: List<String>): Int {
-        return parseInput(input).getCompleteMap().beacons.size
+        val orientedScans = parseInput(input).orientAll()
+        return orientedScans.flatMap { it.beacons }.toSet().size
     }
 
     fun part2(input: List<String>): Int {
-        val displacements = parseInput(input).getCompleteMap().scannerDisplacements
-        return displacements
-            .flatMap { p1 -> displacements.map { p2 -> (p1 - p2).let { (x, y, z) -> x + y + z } } }
+        val orientedScans = parseInput(input).orientAll()
+        return orientedScans
+            .flatMap { s1 -> orientedScans.map { s2 -> (s1.absolutePosition - s2.absolutePosition).norm() } }
             .maxOrNull()
-            ?: error("seriously?")
+            ?: error("no scans to orient")
     }
 
     // test
