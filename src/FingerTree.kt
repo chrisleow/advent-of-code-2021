@@ -326,25 +326,47 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
     private data class Split<V : Any, T : Any>(val before: Tree<V, T>, val pivot: V, val after: Tree<V, T>)
 
 //    private fun <V : Any, T : Any> Tree<V, T>.split(predicate: (V) -> Boolean, pivot: V): Split<V, T> {
-//        return when (this) {
+//        when (this) {
 //
-//            // an empty tree cannot have a split
-//            is Tree.Empty<V, T> -> error("Empty tree / subtree cannot have a split")
-//            is Tree.Single<V, T> -> when  {
-//                predicate(measure.combine(pivot, measure(value))) ->
-//                    Split(Tree.Empty(measure), pivot, Tree.Empty(measure))
-//                else -> error("Split point not found on single value")
+//            // simple cases
+//            is Tree.Empty<V, T> -> {
+//                error("Split point not found.")
 //            }
+//            is Tree.Single<V, T> -> when  {
+//                predicate(measure.combine(pivot, measure(value))) -> {
+//                    return Split(Tree.Empty(measure), pivot, Tree.Empty(measure))
+//                }
+//                else -> {
+//                    error("Split point not found.")
+//                }
+//            }
+//
+//            // interesting case
 //            is Tree.Deep<V, T> -> run {
-//                // sanity check
-//                if (predicate(measure(left.toList().first()))) {
-//                    error("split point is past the first digit of the deep tree.")
+//
+//                // sanity check, make sure split point is in the tree
+//                if (!predicate(measure.combine(pivot, annotation))) {
+//                    error("Split point not found.")
 //                }
 //
 //                // split is in the prefix
+//                return left.toList().let { leftList ->
+//                    leftList.indices
+//                        .filter { index ->
+//                            predicate(measure.combine(pivot, measure(leftList.slice(0 .. index))))
+//                        }
+//                        .map { index ->
+//                            Split(
+//                                left = createSimpleTree(leftList.slice(0 .. index), measure),
+//                                pivot =
+//                            )
+//                        }
+//                        .first()
+//                }
+//
 //                if (predicate(measure(left))) {
 //                    val (before, after) = left.toList().partition { predicate(measure(it)) }
-//                    return@run Split(createSimpleTree(before, measure), )
+//                    return Split(createSimpleTree(before, measure), )
 //                }
 //
 //
@@ -372,8 +394,8 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
                 is Tree.Deep<V, T> -> {
                     appendLine("${indent}Left: ${tree.left.debugText()}")
                     appendLine("${indent}Middle:")
-                    append(tree.middle.debugText(indent + "  "))
-                    appendLine("${indent}Right: ${tree.left.debugText()}")
+                    append(tree.middle.debugText("$indent  "))
+                    appendLine("${indent}Right: ${tree.right.debugText()}")
                 }
             }
         }
@@ -389,10 +411,6 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
         val tree = (1 .. 500).fold(emptyTree) { tree, x -> tree.append(x) }
         val tailTree = (1 .. 34).fold(tree) { t, _ -> t.viewLeft().second }
         println(tailTree.debugText())
-//        val (first, treeTail) = tree.viewLeft()
-//        println(first)
-//        println(treeTail.toSequence().toList())
-//        println(treeTail.debugText())
 
     }
 
