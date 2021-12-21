@@ -1,5 +1,4 @@
 import kotlin.math.abs
-import kotlin.math.min
 
 fun main() {
 
@@ -25,7 +24,7 @@ fun main() {
             right - left <= 1 -> {
                 val (leftCost, costsPlus1) = costs.costAndModify(left)
                 val (rightCost, _) = costsPlus1.costAndModify(right)
-                min(leftCost, rightCost)
+                minOf(leftCost, rightCost)
             }
             else -> {
                 val middle = (left + right) / 2

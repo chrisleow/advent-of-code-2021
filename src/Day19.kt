@@ -15,7 +15,7 @@ fun main() {
         val position: Vector,
     )
 
-    fun <T> Iterable<T>.split(delimiter: (T) -> Boolean): Iterable<Iterable<T>> = this
+    fun <T> Iterable<T>.split(delimiter: (T) -> Boolean): List<List<T>> = this
         .fold(listOf(emptyList<T>())) { acc, item ->
             when (delimiter(item)) {
                 true -> acc + listOf(emptyList())
@@ -32,10 +32,6 @@ fun main() {
                 val beacons = lines
                     .mapNotNull { regex.matchEntire(it)?.groupValues }
                     .map { gv -> Vector(gv[1].toInt(), gv[2].toInt(), gv[3].toInt()) }
-
-                // some fields here will be useful later, specifically position and translations norms, where
-                // position will be modified as we translate points, and mutual distances allows easy filtering
-                // between scanners
                 OrientedScan(
                     id = index,
                     beacons = beacons.toSet(),
@@ -73,48 +69,36 @@ fun main() {
         position = transform(position),
     )
 
+    fun OrientedScan.allOrientations() = orientationTransformers.asSequence().map { this.transform(it) }
     operator fun OrientedScan.plus(other: Vector) = this.transform { it + other }
-
-    fun OrientedScan.allOrientations() = orientationTransformers
-        .asSequence()
-        .map { transformer -> this.transform(transformer) }
 
     fun List<OrientedScan>.orientAll(): List<OrientedScan> {
         tailrec fun orientStep(scans: List<OrientedScan>, knownScans: List<OrientedScan>): List<OrientedScan> {
             if (scans.isEmpty()) return knownScans
 
             // first-pass filter, we know that if at least 66 == 12 * (12 - 1) / 2 of the norms don't match in
-            // length, we shouldn't investigate further...  much more efficent than examining all orientations
+            // length, we shouldn't investigate further...  much more efficient than examining all orientations
             // up-front!
             val matchingScanPairsFirstPass = knownScans
                 .asSequence()
                 .flatMap { knownScan -> scans.map { Pair(knownScan, it) } }
                 .filter { (knownScan, scan) -> (knownScan.mutualDistances intersect scan.mutualDistances).size >= 66 }
 
-            // now have to work harder, examine mutual distances for all points in all orientations
-            // we do this by counting translation vectors between existing and known scans, expecting the minimum
-            // number (12) which proves that there are 12 beacons in common
-            val newOrientedScan = matchingScanPairsFirstPass
+            // now have to work harder, attempt an alignment between all points at all orientations until beacon
+            // count condition is met
+            val newKnownScan = matchingScanPairsFirstPass
                 .flatMap { (knownScan, scan) -> scan.allOrientations().map { Pair(knownScan,it) } }
                 .firstNotNullOf { (knownScan, orientedScan) ->
-                    val translationVectorCounts = knownScan.beacons
+                    knownScan.beacons
+                        .asSequence()
                         .flatMap { knownBeacon -> orientedScan.beacons.map { beacon -> knownBeacon - beacon } }
-                        .groupingBy { it }
-                        .eachCount()
-                    val (mostCommonTranslationVector, maxCount) = translationVectorCounts
-                        .maxByOrNull { (_, count) -> count }
-                        ?: error("expecting at least one translation vector")
-
-                    // expecting 12 beacons minimum to match, ensure we translate as well as orient result
-                    if (maxCount < 12) {
-                        null
-                    } else {
-                        orientedScan + mostCommonTranslationVector
-                    }
+                        .distinct()
+                        .map { position -> orientedScan + position }
+                        .firstOrNull { scan -> (scan.beacons intersect knownScan.beacons).size >= 12 }
                 }
 
             // move scan to "known", so we may try again
-            return orientStep(scans.filter { it.id != newOrientedScan.id }, knownScans + newOrientedScan)
+            return orientStep(scans.filter { it.id != newKnownScan.id }, knownScans + newKnownScan)
         }
 
         // start search assuming scanner 0 is the correct orientation and at absolute 0 position

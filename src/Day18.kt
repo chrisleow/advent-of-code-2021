@@ -47,29 +47,34 @@ fun main() {
         //
         // in order to limit the entire operation to one operation only, we use nulls to indicate "no modification"
         // so there is only one "explosion" recursively at a time.
-        fun Expr.getExploded(level: Int): Triple<Int, Expr, Int>? = when (this) {
-            is Expr.Literal -> null
-            is Expr.Pair -> {
-                if (level == 4) {
-                    val leftVal = (left as? Expr.Literal)?.value ?: error("expected literal at level 4")
-                    val rightVal = (right as? Expr.Literal)?.value ?: error("expected literal at level 4")
-                    Triple(leftVal, Expr.Literal(0), rightVal)
-                } else {
-
-                    // if anything below is exploded, try to absorb left or right values into current pair
-                    when (val leftTriple = left.getExploded(level + 1)) {
-                        null -> when (val rightTriple = right.getExploded(level + 1)) {
-                            null -> null
-                            else -> {
-                                val (leftVal, rightExpr, rightVal) = rightTriple
-                                Triple(0, Expr.Pair(left.addRight(leftVal), rightExpr), rightVal)
-                            }
-                        }
-                        else -> {
-                            val (leftVal, leftExpr, rightVal) = leftTriple
-                            Triple(leftVal, Expr.Pair(leftExpr, right.addLeft(rightVal)), 0)
-                        }
+        fun Expr.getExploded(level: Int): Triple<Int, Expr, Int>? {
+            when (this) {
+                is Expr.Literal -> {
+                    return null
+                }
+                is Expr.Pair -> {
+                    if (level == 4) {
+                        val leftVal = (left as? Expr.Literal)?.value ?: error("expected literal at level 4")
+                        val rightVal = (right as? Expr.Literal)?.value ?: error("expected literal at level 4")
+                        return Triple(leftVal, Expr.Literal(0), rightVal)
                     }
+
+                    // if anything below on the left is exploded, absorb the extra value, propagate left up
+                    val leftTriple = left.getExploded(level + 1)
+                    if (leftTriple != null) {
+                        val (leftVal, newLeftExpr, rightVal) = leftTriple
+                        return Triple(leftVal, Expr.Pair(newLeftExpr, right.addLeft(rightVal)), 0)
+                    }
+
+                    // if anything below on the right is exploded, absorb the extra value, propagate right up
+                    val rightTriple = right.getExploded(level + 1)
+                    if (rightTriple != null) {
+                        val (leftVal, newRightExpr, rightVal) = rightTriple
+                        return Triple(0, Expr.Pair(left.addRight(leftVal), newRightExpr), rightVal)
+                    }
+
+                    // nothing to explode
+                    return null
                 }
             }
         }

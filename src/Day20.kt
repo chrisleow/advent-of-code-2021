@@ -1,11 +1,7 @@
 fun main() {
 
     data class Point(val x: Int, val y: Int)
-    data class State(
-        val enhancements: List<Boolean>,
-        val points: Set<Point>,
-        val boundaryState: Boolean
-    )
+    data class State(val enhancements: List<Boolean>, val points: Set<Point>, val boundaryState: Boolean)
 
     fun <T> Iterable<T>.split(delimiter: (T) -> Boolean): List<List<T>> = this
         .fold(listOf(emptyList<T>())) { acc, item ->
@@ -18,13 +14,17 @@ fun main() {
 
     fun parseInput(input: List<String>): State {
         val groups = input.split { it.isBlank() }.toList()
-        val enhancements = groups[0].joinToString("").trim().map { it == '#' }
-        val points = groups[1].flatMapIndexed { y, line ->
-            line.mapIndexedNotNull { x, char ->
-                if (char == '#') Point(x, y) else null
-            }
-        }
-        return State(enhancements, points.toSet(), boundaryState = false)
+        return State(
+            enhancements = groups[0]
+                .joinToString("") { it.trim() }
+                .map { it == '#' },
+            points = groups[1]
+                .flatMapIndexed { y, line ->
+                    line.mapIndexedNotNull { x, char -> if (char == '#') Point(x, y) else null }
+                }
+                .toSet(),
+            boundaryState = false,
+        )
     }
 
     fun State.toDebugString(): String = buildString {
@@ -32,7 +32,7 @@ fun main() {
         val (minY, maxY) = Pair(points.minOf { it.y }, points.maxOf { it.y })
         (minY .. maxY).forEach { y ->
             (minX .. maxX).forEach { x ->
-                append(if (Point(x, y) in points) '#' else '.')
+                append(if (Point(x, y) in points) '\u2588' else ' ')
             }
             appendLine()
         }
@@ -47,25 +47,29 @@ fun main() {
     fun State.next(): State {
         val (minX, maxX) = Pair(points.minOf { it.x }, points.maxOf { it.x })
         val (minY, maxY) = Pair(points.minOf { it.y }, points.maxOf { it.y })
+        val checkPoints = (minX - 1 .. maxX + 1).flatMap { x ->
+            (minY - 1 .. maxY + 1).map { y -> Point(x, y) }
+        }
 
         // remember the boundary state (all light or all dark)
-        fun Point.isSetForState() = when {
-            x !in (minX ..maxX) || y !in (minY .. maxY) -> boundaryState
-            else -> this in points
-        }
-        val newPoints = (minX - 1 .. maxX + 1).flatMap { x ->
-            (minY - 1 .. maxY + 1).mapNotNull { y ->
-                val point = Point(x, y)
-                val index = point
-                    .getNeighbourhood()
-                    .joinToString("") { if (it.isSetForState()) "1" else "0" }
-                    .toInt(2)
-                if (enhancements[index]) point else null
-            }
+        fun Point.isSet() = when {
+            x in (minX ..maxX) && y in (minY .. maxY) -> this in points
+            else -> boundaryState
         }
 
-        // if first point is set, boundary state will constantly flip between turns
-        return copy(points = newPoints.toSet(), boundaryState = boundaryState xor enhancements[0])
+        // if first enhancement is set (number 0), boundary state will constantly flip between turns
+        return copy(
+            boundaryState = boundaryState xor enhancements[0],
+            points = checkPoints
+                .filter { point ->
+                    val index = point
+                        .getNeighbourhood()
+                        .joinToString("") { if (it.isSet()) "1" else "0" }
+                        .toInt(2)
+                    enhancements[index]
+                }
+                .toSet(),
+        )
     }
 
     fun part1(input: List<String>): Int {
@@ -84,4 +88,14 @@ fun main() {
     val input = readInput("Day20")
     println("Part 1: ${part1(input)}")
     println("Part 2: ${part2(input)}")
+
+//    run {
+//        val lifeInput = readInput("Day20_life")
+//        generateSequence(parseInput(lifeInput)) { it.next() }.forEach { state ->
+//            println(state.toDebugString())
+//            println()
+//            println()
+//            Thread.sleep(500L)
+//        }
+//    }
 }
