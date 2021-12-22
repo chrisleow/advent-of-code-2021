@@ -15,24 +15,23 @@ fun main() {
      */
     fun getMinimumCost(lower: Int, upper: Int, calculateCost: (Int) -> Int): Int {
 
-        // ensure map is populated with calculated values we're about to use, ignoring stuff we already have
-        fun AVLMap<Int, Int>.costAndModify(pos: Int): Pair<Int, AVLMap<Int, Int>> {
-            return this[pos]?.let { it to this } ?: calculateCost(pos).let { it to this.add(pos, it) }
-        }
+        // helper functions to modify map and retrieve cost
+        operator fun AVLMap<Int, Int>.invoke(position: Int) =
+            get(position) ?: error("position not populated")
+        fun AVLMap<Int, Int>.ensurePopulated(vararg positions: Int): AVLMap<Int, Int> =
+            addAll(positions.filter { !containsKey(it) }.map { it to calculateCost(it) })
 
         tailrec fun findCost(left: Int, right: Int, costs: AVLMap<Int, Int>): Int = when {
             right - left <= 1 -> {
-                val (leftCost, costsPlus1) = costs.costAndModify(left)
-                val (rightCost, _) = costsPlus1.costAndModify(right)
-                minOf(leftCost, rightCost)
+                val nextCosts = costs.ensurePopulated(left, right)
+                minOf(nextCosts(left), nextCosts(right))
             }
             else -> {
                 val middle = (left + right) / 2
-                val (leftMiddleCost, costsPlus1) = costs.costAndModify(middle)
-                val (rightMiddleCost, costsPlus2) = costsPlus1.costAndModify(middle + 1)
+                val nextCosts = costs.ensurePopulated(middle, middle + 1)
                 when {
-                    leftMiddleCost < rightMiddleCost -> findCost(left, middle, costsPlus2)
-                    leftMiddleCost > rightMiddleCost -> findCost(middle + 1, right, costsPlus2)
+                    nextCosts(middle) < nextCosts(middle + 1) -> findCost(left, middle, nextCosts)
+                    nextCosts(middle) > nextCosts(middle + 1) -> findCost(middle + 1, right, nextCosts)
                     else -> error("I'm not built for this!")
                 }
             }

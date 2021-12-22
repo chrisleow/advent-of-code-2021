@@ -358,17 +358,22 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
      * Tree Splitting with annotations
      */
 
-    private data class Split<V : Any, T : Any>(val before: Tree<V, T>, val pivot: T, val after: Tree<V, T>)
+    private sealed class SplitResult<V : Any, T : Any> {
+        class None<V : Any, T : Any>
+            : SplitResult<V, T>()
+        data class Split<V : Any, T : Any>(val before: Tree<V, T>, val pivot: T, val after: Tree<V, T>)
+            : SplitResult<V, T>()
+    }
 
-    private fun <V : Any, T : Any> Tree<V, T>.split(predicate: (V) -> Boolean, pivotMeasure: V): Split<V, T> {
-        fun splitDeep(tree: Tree.Deep<V, T>): Split<V, T> {
+    private fun <V : Any, T : Any> Tree<V, T>.split(predicate: (V) -> Boolean, pivotMeasure: V): SplitResult<V, T> {
+        fun splitDeep(tree: Tree.Deep<V, T>): SplitResult<V, T> {
 
             // check the prefix
             val prefixList = tree.prefix.toList()
             val prefixPivotMeasure = prefixList.indices.fold(pivotMeasure) { pivotMeasureSoFar, index ->
                 val newPivotMeasureSoFar = measure.combine(pivotMeasureSoFar, measure(prefixList[index]))
                 if (predicate(newPivotMeasureSoFar)) {
-                    return Split(
+                    return SplitResult.Split(
                         before = prefixList.take(index).toTree(measure),
                         pivot = prefixList[index],
                         after = createTree(prefixList.drop(index), tree.deeper, tree.suffix.toList(), measure),
@@ -381,28 +386,32 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
             // check the middle of the tree
             val deeperPivotMeasure = measure.combine(prefixPivotMeasure, tree.deeper.getAnnotation())
             if (predicate(deeperPivotMeasure)) {
-                val innerSplit = tree.deeper.split(predicate, prefixPivotMeasure)
-                val innerList = innerSplit.pivot.toList()
-                innerList.indices.fold(prefixPivotMeasure) { pivotMeasureSoFar, index ->
-                    val newPivotMeasureSoFar = measure.combine(pivotMeasureSoFar, measure(innerList[index]))
-                    if (predicate(newPivotMeasureSoFar)) {
-                        return Split(
-                            before = createTree(
-                                prefix = tree.prefix.toList(),
-                                deeper = innerSplit.before,
-                                suffix = innerList.take(index),
-                                measure = measure,
-                            ),
-                            pivot = innerList[index],
-                            after = createTree(
-                                prefix = innerList.drop(index + 1),
-                                deeper = innerSplit.after,
-                                suffix = tree.suffix.toList(),
-                                measure = measure,
-                            ),
-                        )
-                    } else {
-                        newPivotMeasureSoFar
+                when (val innerSplit = tree.deeper.split(predicate, prefixPivotMeasure)) {
+                    is SplitResult.None -> return SplitResult.None()
+                    is SplitResult.Split -> {
+                        val innerList = innerSplit.pivot.toList()
+                        innerList.indices.fold(prefixPivotMeasure) { pivotMeasureSoFar, index ->
+                            val newPivotMeasureSoFar = measure.combine(pivotMeasureSoFar, measure(innerList[index]))
+                            if (predicate(newPivotMeasureSoFar)) {
+                                return SplitResult.Split(
+                                    before = createTree(
+                                        prefix = tree.prefix.toList(),
+                                        deeper = innerSplit.before,
+                                        suffix = innerList.take(index),
+                                        measure = measure,
+                                    ),
+                                    pivot = innerList[index],
+                                    after = createTree(
+                                        prefix = innerList.drop(index + 1),
+                                        deeper = innerSplit.after,
+                                        suffix = tree.suffix.toList(),
+                                        measure = measure,
+                                    ),
+                                )
+                            } else {
+                                newPivotMeasureSoFar
+                            }
+                        }
                     }
                 }
             }
@@ -412,7 +421,7 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
             suffixList.indices.fold(deeperPivotMeasure) { pivotMeasureSoFar, index ->
                 val newPivotMeasureSoFar = measure.combine(pivotMeasureSoFar, measure(suffixList[index]))
                 if (predicate(newPivotMeasureSoFar)) {
-                    return Split(
+                    return SplitResult.Split(
                         before = createTree(tree.prefix.toList(), tree.deeper, suffixList.take(index), measure),
                         pivot = suffixList[index],
                         after = suffixList.drop(index + 1).toTree(measure),
@@ -423,19 +432,16 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
             }
 
             // if we get here, it means the pivot doesn't add up
-            error("Split point not found.")
+            return SplitResult.None()
         }
 
         // deal with all cases
         return when (this) {
-            is Tree.Deep<V, T> -> splitDeep(this)
             is Tree.Empty<V, T> -> error("Split point not found.")
-            is Tree.Single<V, T> -> {
-                if (predicate(measure.combine(pivotMeasure, measure(value)))) {
-                    return Split(Tree.Empty(measure), value, Tree.Empty(measure))
-                } else {
-                    error("Split point not found.")
-                }
+            is Tree.Deep<V, T> -> splitDeep(this)
+            is Tree.Single<V, T> -> when (predicate(measure.combine(pivotMeasure, measure(value)))) {
+                true -> SplitResult.Split(Tree.Empty(measure), value, Tree.Empty(measure))
+                false -> SplitResult.None()
             }
         }
     }
@@ -478,7 +484,7 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
         }
         val emptyTree: Tree<Int, Int> = Tree.Empty(measure)
         val tree = (1 .. 500).fold(emptyTree) { tree, x -> tree.append(x) }
-        val split = tree.split { it > 250 }
+        val split = tree.split { it > 250 } as SplitResult.Split
         println(split.before.debugText())
         println(split.pivot)
         println(split.after.debugText())
