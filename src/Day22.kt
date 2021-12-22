@@ -38,27 +38,15 @@ fun main() {
         zRange = this.zRange.intersect(other.zRange),
     )
 
+    fun List<Cuboid>.intersect(other: Cuboid) =
+        this.map { it.intersect(other) }.filter { !it.isEmpty() }
+
     fun State.apply(instruction: Instruction): State {
-        return when (instruction) {
-            is Instruction.On -> {
-                val newCuboids = this.antiCuboids
-                    .map { it.intersect(instruction.cuboid) }
-                    .filter { !it.isEmpty() }
-                val newAntiCuboids = this.cuboids
-                    .map { it.intersect(instruction.cuboid) }
-                    .filter { !it.isEmpty() }
-                State(cuboids + newCuboids + instruction.cuboid, antiCuboids + newAntiCuboids)
-            }
-            is Instruction.Off -> {
-                val newAntiCuboids = this.cuboids
-                    .map { it.intersect(instruction.cuboid) }
-                    .filter { !it.isEmpty() }
-                val newCuboids = this.antiCuboids
-                    .map { it.intersect(instruction.cuboid) }
-                    .filter { !it.isEmpty() }
-                State(cuboids + newCuboids, antiCuboids + newAntiCuboids)
-            }
-        }
+        val newCuboid = if (instruction is Instruction.On) listOf(instruction.cuboid) else emptyList()
+        return State(
+            cuboids = cuboids + this.antiCuboids.intersect(instruction.cuboid) + newCuboid,
+            antiCuboids = antiCuboids + this.cuboids.intersect(instruction.cuboid),
+        )
     }
 
     fun part1(input: List<String>): Long {
