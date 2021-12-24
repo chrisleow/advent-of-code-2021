@@ -5,17 +5,17 @@ data class Cuboid(val xRange: IntRange, val yRange: IntRange, val zRange: IntRan
     }
 }
 
-sealed class Instruction {
+sealed class ReactorInstruction {
     abstract val cuboid: Cuboid
-    data class On(override val cuboid: Cuboid) : Instruction()
-    data class Off(override val cuboid: Cuboid) : Instruction()
+    data class On(override val cuboid: Cuboid) : ReactorInstruction()
+    data class Off(override val cuboid: Cuboid) : ReactorInstruction()
 }
 
 data class State(val cuboids: List<Cuboid>, val antiCuboids: List<Cuboid>)
 
 fun main() {
 
-    fun parseInput(input: List<String>): List<Instruction> {
+    fun parseInput(input: List<String>): List<ReactorInstruction> {
         val regex = "(on|off) x=(-?\\d+)\\.\\.(-?\\d+),y=(-?\\d+)\\.\\.(-?\\d+),z=(-?\\d+)\\.\\.(-?\\d+)".toRegex()
         return input
             .mapNotNull { regex.matchEntire(it.trim())?.groupValues }
@@ -25,7 +25,7 @@ fun main() {
                     yRange = (gv[4].toInt() .. gv[5].toInt()),
                     zRange = (gv[6].toInt() .. gv[7].toInt()),
                 )
-                if (gv[1] == "on") Instruction.On(cuboid) else Instruction.Off(cuboid)
+                if (gv[1] == "on") ReactorInstruction.On(cuboid) else ReactorInstruction.Off(cuboid)
             }
     }
 
@@ -39,10 +39,10 @@ fun main() {
     )
 
     fun List<Cuboid>.intersect(other: Cuboid) =
-        this.map { it.intersect(other) }.filter { !it.isEmpty() }
+        this.asSequence().map { it.intersect(other) }.filter { !it.isEmpty() }.toList()
 
-    fun State.apply(instruction: Instruction): State {
-        val newCuboid = if (instruction is Instruction.On) listOf(instruction.cuboid) else emptyList()
+    fun State.apply(instruction: ReactorInstruction): State {
+        val newCuboid = if (instruction is ReactorInstruction.On) listOf(instruction.cuboid) else emptyList()
         return State(
             cuboids = cuboids + this.antiCuboids.intersect(instruction.cuboid) + newCuboid,
             antiCuboids = antiCuboids + this.cuboids.intersect(instruction.cuboid),
