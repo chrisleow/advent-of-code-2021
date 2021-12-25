@@ -162,22 +162,22 @@ fun main() {
     }
 
     fun State.solve(): Solution {
-        val queue = PriorityQueue<Pair<Int, State>>(compareBy { it.first }).also { it.add(0 to this) }
-        val back = mutableMapOf<State, State>()
+        val backPointers = mutableMapOf<State, State>()
         val costs = mutableMapOf(this to 0)
+        val queue = PriorityQueue<Pair<Int, State>>(compareBy { it.first }).also { it.add(0 to this) }
         while (true) {
             val (costSoFar, state) = queue.remove() ?: error("no more states to search")
             if (state.isSolution()) {
                 return Solution(
                     cost = costSoFar,
-                    path = generateSequence(state) { back[it] }.asIterable().reversed(),
+                    path = generateSequence(state) { backPointers[it] }.asIterable().reversed(),
                 )
             }
 
             state.nextMoves().forEach { (nextState, cost) ->
                 if (costSoFar + cost < (costs[nextState] ?: Int.MAX_VALUE)) {
                     costs[nextState] = costSoFar + cost
-                    back[nextState] = state
+                    backPointers[nextState] = state
                     queue.add(costSoFar + cost to nextState)
                 }
             }
