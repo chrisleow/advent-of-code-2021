@@ -390,8 +390,9 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
                     is SplitResult.None -> return SplitResult.None()
                     is SplitResult.Split -> {
                         val innerList = innerSplit.pivot.toList()
-                        innerList.indices.fold(prefixPivotMeasure) { pivotMeasureSoFar, index ->
-                            val newPivotMeasureSoFar = measure.combine(pivotMeasureSoFar, measure(innerList[index]))
+                        val startMeasure = measure.combine(prefixPivotMeasure, innerSplit.before.getAnnotation())
+                        innerList.foldIndexed(startMeasure) { index, pivotMeasureSoFar, item ->
+                            val newPivotMeasureSoFar = measure.combine(pivotMeasureSoFar, measure(item))
                             if (predicate(newPivotMeasureSoFar)) {
                                 return SplitResult.Split(
                                     before = createTree(
@@ -400,7 +401,7 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
                                         suffix = innerList.take(index),
                                         measure = measure,
                                     ),
-                                    pivot = innerList[index],
+                                    pivot = item,
                                     after = createTree(
                                         prefix = innerList.drop(index + 1),
                                         deeper = innerSplit.after,
@@ -437,7 +438,7 @@ class FingerTree<V: Any, T: Any> private constructor(private val root: Tree<V, T
 
         // deal with all cases
         return when (this) {
-            is Tree.Empty<V, T> -> error("Split point not found.")
+            is Tree.Empty<V, T> -> SplitResult.None()
             is Tree.Deep<V, T> -> splitDeep(this)
             is Tree.Single<V, T> -> when (predicate(measure.combine(pivotMeasure, measure(value)))) {
                 true -> SplitResult.Split(Tree.Empty(measure), value, Tree.Empty(measure))
