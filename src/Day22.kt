@@ -1,8 +1,7 @@
 data class Cuboid(val xRange: IntRange, val yRange: IntRange, val zRange: IntRange) {
     fun isEmpty() = (xRange.isEmpty() || yRange.isEmpty() || zRange.isEmpty())
-    val volume = listOf(xRange, yRange, zRange).fold(1L) { product, range ->
-        if (range.isEmpty()) 0L else product * (range.last - range.first + 1)
-    }
+    val volume = sequenceOf(xRange, yRange, zRange)
+        .fold(1L) { acc, range -> acc * maxOf(range.last - range.first + 1, 0) }
 }
 
 sealed class ReactorInstruction {
@@ -10,8 +9,6 @@ sealed class ReactorInstruction {
     data class On(override val cuboid: Cuboid) : ReactorInstruction()
     data class Off(override val cuboid: Cuboid) : ReactorInstruction()
 }
-
-data class State(val cuboids: List<Cuboid>, val antiCuboids: List<Cuboid>)
 
 fun main() {
 
@@ -29,43 +26,40 @@ fun main() {
             }
     }
 
-    fun IntRange.intersect(other: IntRange) =
+    infix fun IntRange.intersect(other: IntRange) =
         (maxOf(this.first, other.first) .. minOf(this.last, other.last))
 
-    fun Cuboid.intersect(other: Cuboid) = Cuboid(
-        xRange = this.xRange.intersect(other.xRange),
-        yRange = this.yRange.intersect(other.yRange),
-        zRange = this.zRange.intersect(other.zRange),
+    infix fun Cuboid.intersect(other: Cuboid) = Cuboid(
+        xRange = this.xRange intersect other.xRange,
+        yRange = this.yRange intersect other.yRange,
+        zRange = this.zRange intersect other.zRange,
     )
 
-    fun List<Cuboid>.intersect(other: Cuboid) =
-        this.asSequence().map { it.intersect(other) }.filter { !it.isEmpty() }.toList()
+    // lantern cuboids!
+    fun Map<Cuboid, Int>.apply(instruction: ReactorInstruction): Map<Cuboid, Int> {
+        val newCuboidCounts = this.entries
+            .asSequence()
+            .map { (cuboid, count) -> (cuboid intersect instruction.cuboid) to -count }
+            .plus(if (instruction is ReactorInstruction.On) listOf(instruction.cuboid to 1) else emptyList())
+        return (this.entries.asSequence().map { (c, n) -> c to n } + newCuboidCounts)
+            .groupBy({ it.first }) { it.second }
+            .mapValues { (_, counts) -> counts.sum() }
+            .filter { (cuboid, count) -> !cuboid.isEmpty() && count != 0 }
+    }
 
-    fun State.apply(instruction: ReactorInstruction): State {
-        val newCuboid = if (instruction is ReactorInstruction.On) listOf(instruction.cuboid) else emptyList()
-        return State(
-            cuboids = cuboids + this.antiCuboids.intersect(instruction.cuboid) + newCuboid,
-            antiCuboids = antiCuboids + this.cuboids.intersect(instruction.cuboid),
-        )
+    fun List<ReactorInstruction>.calculateFinalVolume(): Long {
+        return this
+            .fold(emptyMap<Cuboid, Int>()) { state, instruction -> state.apply(instruction) }
+            .asIterable()
+            .sumOf { (cuboid, count) -> cuboid.volume * count }
     }
 
     fun part1(input: List<String>): Long {
-        val instructions = parseInput(input)
-            .takeWhile { instruction ->
-                listOf(instruction.cuboid.xRange, instruction.cuboid.yRange, instruction.cuboid.zRange).all {
-                    it.first >= -50 && it.last <= 50
-                }
-            }
-        val initialState = State(emptyList(), emptyList())
-        val finalState = instructions.fold(initialState) { state, instruction -> state.apply(instruction) }
-        return finalState.cuboids.sumOf { it.volume } - finalState.antiCuboids.sumOf { it.volume }
+        return parseInput(input).takeWhile { it.cuboid.volume < 100 * 100 * 100 }.calculateFinalVolume()
     }
 
     fun part2(input: List<String>): Long {
-        val instructions = parseInput(input)
-        val initialState = State(emptyList(), emptyList())
-        val finalState = instructions.fold(initialState) { state, instruction -> state.apply(instruction) }
-        return finalState.cuboids.sumOf { it.volume } - finalState.antiCuboids.sumOf { it.volume }
+        return parseInput(input).calculateFinalVolume()
     }
 
     // test
